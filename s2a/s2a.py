@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
+
 import numpy as np
 import sys
 
 import tensorflow as tf
 
+from tensorflow.python.ops import rnn_cell
+
 sys.path.extend(['..'])
-from tf_ext.bricks import linear, dense_to_one_hot
+
+import dataset
+
+from tf_ext.bricks import linear, embedding, dense_to_one_hot
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
@@ -13,97 +19,56 @@ flags.DEFINE_integer('max_epochs', 1000, 'Number of steps to run trainer.')
 flags.DEFINE_float('learning_rate', 1.0, 'Initial learning rate.')
 flags.DEFINE_float('decay', 0.9, 'Learning rate decay.')
 
-
-def prepare_dataset():
-    train_features = np.array(
-            [
-                [0, 0],
-                [0, 1],
-                [1, 0],
-                [1, 1],
-                [0, 0],
-                [0, 1],
-                [1, 0],
-                [1, 1],
-            ],
-            dtype=np.float32
-    )
-    test_features = np.array(
-            [
-                [0, 0],
-                [0, 1],
-                [1, 0],
-                [1, 1],
-            ],
-            dtype=np.float32
-    )
-
-    train_targets = np.array(
-            [
-                [0],
-                [1],
-                [1],
-                [0],
-                [0],
-                [1],
-                [1],
-                [0],
-            ],
-            dtype=np.uint8
-    )
-
-    test_targets = np.array(
-            [
-                [0],
-                [1],
-                [1],
-                [0],
-            ],
-            dtype=np.uint8
-    )
+"""
+This code shows how to build and train a sequence to answer translation model.
+"""
 
 
-    train_set = {
-        'features': train_features,
-        'targets':  train_targets
-    }
-    test_set = {
-        'features': test_features,
-        'targets':  test_targets
-    }
-
-    return train_set, test_set
-
-
-def train(train_set, test_set):
-    input_dim = 2
-    n_classes = 2
+def train(train_set, test_set, idx2word, word2idx):
+    embedding_size = 2
+    vocabulary_length = len(idx2word)
+    sentence_size = train_set['features'].shape[1]
+    lstm_size = 1
 
     # inference model
     with tf.name_scope('model'):
-        i = tf.placeholder("float", name='input')
+        i = tf.placeholder("int32", name='input')
         o = tf.placeholder("int32", name='true_output')
 
-        l1 = linear(
+        with tf.variable_scope("batch_size"):
+            batch_size = tf.shape(i)[0]
+
+        e = embedding(
                 input=i,
-                input_size=input_dim,
-                output_size=3,
-                name='linear_1'
+                length=vocabulary_length,
+                size=embedding_size,
+                name='embedding'
         )
 
-        a1 = tf.nn.tanh(l1, name='tanh_activation')
+        with tf.variable_scope("RNN"):
+            with tf.name_scope("RNNCell"):
+                cell = rnn_cell.LSTMCell(lstm_size, input_size=embedding_size)
+                state = cell.zero_state(batch_size, tf.float32)
 
-        l2 = linear(
-                input=a1,
-                input_size=l1.input_size,
-                output_size=n_classes,
-                name='linear_2'
+            for j in range(sentence_size):
+                if j > 0:
+                    tf.get_variable_scope().reuse_variables()
+
+                output, state = cell(e[:, j, :], state)
+
+        final_state = state
+
+        l = linear(
+                input=final_state,
+                input_size=cell.state_size,
+                output_size=vocabulary_length,
+                name='linear'
         )
 
-        p_o_i = tf.nn.softmax(l2, name="softmax_output")
+        p_o_i = tf.nn.softmax(l, name="softmax_output")
 
     with tf.name_scope('loss'):
-        one_hot_labels = dense_to_one_hot(o, n_classes)
+        one_hot_labels = dense_to_one_hot(o, vocabulary_length)
         loss = tf.reduce_mean(-one_hot_labels * tf.log(p_o_i), name='loss')
         tf.scalar_summary('loss', loss)
 
@@ -119,7 +84,7 @@ def train(train_set, test_set):
         saver = tf.train.Saver()
 
         # training
-        train_op = tf.train.RMSPropOptimizer(FLAGS.learning_rate, FLAGS.decay, name='trainer').minimize(loss)
+        train_op = tf.train.GradientDescentOptimizer(FLAGS.learning_rate, name='trainer').minimize(loss)
         tf.initialize_all_variables().run()
 
         for epoch in range(FLAGS.max_epochs):
@@ -151,8 +116,9 @@ def train(train_set, test_set):
 
 
 def main(_):
-    train_set, test_set = prepare_dataset()
-    train(train_set, test_set)
+    train_set, test_set, idx2word, word2idx = dataset.dataset()
+
+    train(train_set, test_set, idx2word, word2idx)
 
 
 if __name__ == '__main__':

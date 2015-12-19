@@ -1,7 +1,4 @@
-tensorflow
-checkpoint
-*.ckpt
-.idea
+*.hpc
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
