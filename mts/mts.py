@@ -1,15 +1,27 @@
 #!/usr/bin/env python3
+
 import math
 import numpy as np
 import h5py
 
 import tensorflow as tf
+from numpy.core.numeric import indices
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('max_steps', 1000, 'Number of steps to run trainer.')
 flags.DEFINE_float('learning_rate', 1.0, 'Initial learning rate.')
 flags.DEFINE_float('decay', 0.9, 'Learning rate decay.')
+
+"""
+This code shows how to train softmax outputs for multiple targets.
+
+Imagine a NN rather complex which serves as set of binary classifiers. You do not want to build N independent
+binary classifiers as the hidden layers are rather big and computationally expensive.
+
+In this case we train a NN for training 3 binary classifiers evaluating the OR, AND, and XOR logical operations.
+
+"""
 
 
 def prepare_dataset():
@@ -35,27 +47,25 @@ def prepare_dataset():
             ],
             dtype=np.float32
     )
-
     train_targets = np.array(
             [
-                [0],
-                [1],
-                [1],
-                [0],
-                [0],
-                [1],
-                [1],
-                [0],
+                [0, 0, 0],
+                [1, 0, 1],
+                [1, 0, 1],
+                [1, 1, 0],
+                [0, 0, 0],
+                [1, 0, 1],
+                [1, 0, 1],
+                [1, 1, 0],
             ],
             dtype=np.uint8
     )
-
     test_targets = np.array(
             [
-                [0],
-                [1],
-                [1],
-                [0],
+                [0, 0, 0],
+                [1, 0, 1],
+                [1, 0, 1],
+                [1, 1, 0],
             ],
             dtype=np.uint8
     )
@@ -69,7 +79,9 @@ def prepare_dataset():
     #             train_features.shape[1],
     #         ),
     #         dtype='float32'
+    #
     # )
+    #
     # features.dims[0].label = 'example'
     # features.dims[1].label = 'feature'
     #
@@ -81,12 +93,12 @@ def prepare_dataset():
     #         'targets',
     #         (
     #             train_targets.shape[0] + test_targets.shape[0],
-    #             1,  # train_targets.shape[1],
+    #             train_targets.shape[1],
     #         ),
     #         dtype='uint8'
     # )
     # targets.dims[0].label = 'example'
-    # targets.dims[1].label = 'label'
+    # targets.dims[1].label = 'indexs'
     #
     # targets[...] = np.vstack(
     #         [train_targets, test_targets]
@@ -107,7 +119,7 @@ def prepare_dataset():
     return train_set, test_set
 
 
-def Linear( input_dim, output_dim, input, name='Linear'):
+def Linear(input_dim, output_dim, input, name='Linear'):
     """Initialise a linear transformation between two layers in a neural network.
 
     :param input: input into the linear block
@@ -127,54 +139,78 @@ def Linear( input_dim, output_dim, input, name='Linear'):
 
         y = tf.matmul(input, W) + b
 
+        y.input_dim = input_dim
+        y.output_dim = output_dim
+        y.W = W
+        y.b = b
+
     return y
 
 
-def dense_to_one_hot(labels, n_clases):
+def mutlitarget_dense_to_one_hot(labels, n_classes):
     """ Converts dense representation of labels (e.g. 0, 1, 1) into one hot encoding ( e.g. (1, 0, 0), (0, 1, 0), etc.
 
     :param labels: integer input labels for a given batch
-    :param n_clases: number of all different labels (classes)
+    :param n_classes: number of all different labels (classes)
     :return: a 2D tensor with encoded labels using one hot encoding
     """
-
-    batch_size = tf.size(labels)
-    indices = tf.expand_dims(tf.range(0, batch_size), 1)
-    concated = tf.concat(1, [indices, labels])
-    onehot_labels = tf.sparse_to_dense(
-            concated,
-            tf.pack([batch_size, n_clases]),
-            1.0,
-            0.0
-    )
+    with tf.name_scope('mutlitarget_dense_to_one_hot'):
+        batch_size = tf.shape(labels)[0]
+        n_classifiers = tf.shape(labels)[1]
+        labels = tf.reshape(labels, [-1, 1])
+        indices_1 = tf.reshape(tf.tile(tf.expand_dims(tf.range(0, batch_size), 1), tf.pack([1, n_classifiers])), [-1, 1])
+        indices_2 = tf.tile(tf.expand_dims(tf.range(0, n_classifiers), 1), tf.pack([batch_size, 1]))
+        concated = tf.concat(1, [indices_1, indices_2, labels])
+        onehot_labels = tf.sparse_to_dense(
+                concated,
+                tf.pack([batch_size, n_classifiers, n_classes]),
+                1.0,
+                0.0
+        )
 
     return onehot_labels
 
 
+
 def train(train_set, test_set):
     input_dim = 2
+
     n_classes = 2
+    n_classifiers = 3
 
     # inference model
     with tf.name_scope('model'):
         i = tf.placeholder("float", name='input')
         o = tf.placeholder("int32", name='true_output')
 
-        l1 = Linear(input_dim, 3, input=i, name='linear_1')
+        l1 = Linear(
+                input_dim=input_dim,
+                output_dim=3,
+                input=i,
+                name='linear_1'
+        )
 
         a1 = tf.nn.tanh(l1, name='tanh_activation')
 
-        l2 = Linear(3, n_classes, input=a1, name='linear_2')
+        l2 = Linear(
+                input_dim=l1.output_dim,
+                output_dim=n_classes * n_classifiers,
+                input=a1,
+                name='linear_2'
+        )
 
-        p_o_i = tf.nn.softmax(l2, name="softmax_output")
+        with tf.name_scope('multitarget_softmax_activation'):
+            l2 = tf.reshape(l2, [-1, n_classifiers, n_classes])
+            e_x = tf.exp(l2 - tf.reduce_max(l2, reduction_indices=2, keep_dims=True))
+            p_o_i = e_x / tf.reduce_sum(e_x, reduction_indices=2, keep_dims=True)
 
     with tf.name_scope('loss'):
-        onehot_labels = dense_to_one_hot(o, n_classes)
-        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(l2, onehot_labels), name='loss')
+        one_hot_labels = mutlitarget_dense_to_one_hot(o, n_classes)
+        loss = tf.reduce_mean(-one_hot_labels * tf.log(p_o_i), name='loss')
         tf.scalar_summary('loss', loss)
 
     with tf.name_scope('accuracy'):
-        correct_prediction = tf.equal(tf.argmax(onehot_labels, 1), tf.argmax(p_o_i, 1))
+        correct_prediction = tf.equal(tf.argmax(one_hot_labels, 2), tf.argmax(p_o_i, 2))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, 'float'))
         tf.scalar_summary('accuracy', accuracy)
 
@@ -191,7 +227,8 @@ def train(train_set, test_set):
             sess.run(train_op, feed_dict={i: train_set['features'], o: train_set['targets']})
 
             if epoch % max(int(FLAGS.max_steps / 100), 1) == 0:
-                summary, lss, acc = sess.run([merged, loss, accuracy], feed_dict={i: test_set['features'], o: test_set['targets']})
+                summary, lss, acc = sess.run([merged, loss, accuracy],
+                                             feed_dict={i: test_set['features'], o: test_set['targets']})
                 writer.add_summary(summary, epoch)
                 print()
                 print('Epoch: {epoch}'.format(epoch=epoch))
@@ -206,7 +243,7 @@ def train(train_set, test_set):
         p_o_i = sess.run(p_o_i, feed_dict={i: test_set['features'], o: test_set['targets']})
         print(p_o_i)
         print('Argmax predictions')
-        print(np.matrix(np.argmax(p_o_i, 1)).transpose())
+        print(np.matrix(np.argmax(p_o_i, 2)))
 
 
 def main(_):
