@@ -218,7 +218,7 @@ def train(train_set, test_set):
         # Merge all the summaries and write them out to ./log
         merged = tf.merge_all_summaries()
         writer = tf.train.SummaryWriter('./log', sess.graph_def)
-
+        saver = tf.train.Saver()
         # training
         train_op = tf.train.RMSPropOptimizer(FLAGS.learning_rate, FLAGS.decay, name='trainer').minimize(loss)
         tf.initialize_all_variables().run()
@@ -234,6 +234,11 @@ def train(train_set, test_set):
                 print('Epoch: {epoch}'.format(epoch=epoch))
                 print(' - accuracy = {acc}'.format(acc=acc))
                 print(' - loss     = {lss}'.format(lss=lss))
+
+        save_path = saver.save(sess, "model.ckpt")
+        print()
+        print("Model saved in file: %s" % save_path)
+        print()
 
         print('Test features')
         print(test_set['features'])
