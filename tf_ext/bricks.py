@@ -65,16 +65,16 @@ def softmax_2d(input, n_classifiers, n_classes, name='softmax_2d'):
         return p_o_i
 
 
-def rnn(cell, input, state, sequence_size, name='RNN'):
+def rnn(cell, input, initial_state, sequence_size, name='RNN'):
     with tf.variable_scope(name):
         outputs = []
-        states = []
+        states = [initial_state]
 
         for j in range(sequence_size):
             if j > 0:
                 tf.get_variable_scope().reuse_variables()
 
-            output, state = cell(input[:, j, :], state)
+            output, state = cell(input[:, j, :], states[-1])
 
             outputs.append(outputs)
             states.append(state)
