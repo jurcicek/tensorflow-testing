@@ -12,6 +12,15 @@ text_data = [
     ('What color is grass', 'green'),
     ('Sky, what color is it', 'blue'),
     ('Sun, what color is it', 'yellow'),
+    ('I want chinese', 'chinese'),
+    ('I want chinese food', 'chinese'),
+    ('Indian food', 'indian'),
+    ('french food', 'french'),
+    ('french restaurant', 'french'),
+    ('chinese restaurant', 'chinese'),
+    ('I am looking for a restaurant serving Indian food', 'indian'),
+    ('I am looking for a restaurant serving Indian food no french food', 'french'),
+    ('Indian no chinese food', 'chinese'),
 ]
 
 

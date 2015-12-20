@@ -59,12 +59,27 @@ def embedding(input, length, size, name='embedding'):
 def softmax_2d(input, n_classifiers, n_classes, name='softmax_2d'):
     with tf.name_scope(name):
         input = tf.reshape(input, [-1, n_classifiers, n_classes])
-        e_x = tf.exp(input - tf.reduce_max(input, reduction_indices=2, keep_dims=True))
-        # e_x[e_x < 1e-10] = 1e-10
+        e_x = tf.exp(input - tf.reduce_max(input, reduction_indices=2, keep_dims=True)) + 1e-10
         p_o_i = e_x / tf.reduce_sum(e_x, reduction_indices=2, keep_dims=True)
 
         return p_o_i
 
+
+def rnn(cell, input, state, sequence_size, name='RNN'):
+    with tf.variable_scope(name):
+        outputs = []
+        states = []
+
+        for j in range(sequence_size):
+            if j > 0:
+                tf.get_variable_scope().reuse_variables()
+
+            output, state = cell(input[:, j, :], state)
+
+            outputs.append(outputs)
+            states.append(state)
+
+    return outputs, states
 
 def dense_to_one_hot_2d(labels, n_classes):
     """ Converts dense representation of labels (e.g. 0, 1, 1) into one hot encoding ( e.g. (1, 0, 0), (0, 1, 0), etc.

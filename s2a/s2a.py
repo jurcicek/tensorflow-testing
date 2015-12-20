@@ -5,18 +5,18 @@ import sys
 
 import tensorflow as tf
 
-from tensorflow.python.ops import rnn_cell
+from tensorflow.python.ops.rnn_cell import LSTMCell
 
 sys.path.extend(['..'])
 
 import dataset
 
-from tf_ext.bricks import linear, embedding, dense_to_one_hot
+from tf_ext.bricks import linear, embedding, rnn, dense_to_one_hot
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('max_epochs', 1000, 'Number of steps to run trainer.')
-flags.DEFINE_float('learning_rate', 1.0, 'Initial learning rate.')
+flags.DEFINE_float('learning_rate', 0.01, 'Initial learning rate.')
 flags.DEFINE_float('decay', 0.9, 'Learning rate decay.')
 
 """
@@ -25,10 +25,10 @@ This code shows how to build and train a sequence to answer translation model.
 
 
 def train(train_set, test_set, idx2word, word2idx):
-    embedding_size = 2
+    embedding_size = 5
     vocabulary_length = len(idx2word)
-    sentence_size = train_set['features'].shape[1]
-    lstm_size = 1
+    sequence_size = train_set['features'].shape[1]
+    lstm_size = 5
 
     # inference model
     with tf.name_scope('model'):
@@ -45,18 +45,19 @@ def train(train_set, test_set, idx2word, word2idx):
                 name='embedding'
         )
 
-        with tf.variable_scope("RNN"):
-            with tf.name_scope("RNNCell"):
-                cell = rnn_cell.LSTMCell(lstm_size, input_size=embedding_size)
-                state = cell.zero_state(batch_size, tf.float32)
+        with tf.name_scope("RNNCell"):
+            cell = LSTMCell(lstm_size, input_size=embedding_size)
+            state = cell.zero_state(batch_size, tf.float32)
 
-            for j in range(sentence_size):
-                if j > 0:
-                    tf.get_variable_scope().reuse_variables()
+        outputs, states = rnn(
+                cell=cell,
+                input=e,
+                state=state,
+                sequence_size=sequence_size,
+                name='RNN'
+        )
 
-                output, state = cell(e[:, j, :], state)
-
-        final_state = state
+        final_state = states[-1]
 
         l = linear(
                 input=final_state,
@@ -84,7 +85,7 @@ def train(train_set, test_set, idx2word, word2idx):
         saver = tf.train.Saver()
 
         # training
-        train_op = tf.train.GradientDescentOptimizer(FLAGS.learning_rate, name='trainer').minimize(loss)
+        train_op = tf.train.AdamOptimizer(FLAGS.learning_rate, name='trainer').minimize(loss)
         tf.initialize_all_variables().run()
 
         for epoch in range(FLAGS.max_epochs):
@@ -108,9 +109,9 @@ def train(train_set, test_set, idx2word, word2idx):
         print(test_set['features'])
         print('Test targets')
         print(test_set['targets'])
-        print('Predictions')
+        # print('Predictions')
         p_o_i = sess.run(p_o_i, feed_dict={i: test_set['features'], o: test_set['targets']})
-        print(p_o_i)
+        # print(p_o_i)
         print('Argmax predictions')
         print(np.argmax(p_o_i, 1).reshape((-1, 1)))
 
