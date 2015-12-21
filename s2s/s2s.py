@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import math
+
 import numpy as np
 import sys
 
@@ -11,7 +11,7 @@ sys.path.extend(['..'])
 
 import dataset
 
-from tf_ext.bricks import linear, embedding, rnn, dense_to_one_hot
+from tf_ext.bricks import linear, embedding, rnn, dense_to_one_hot, dense_to_one_hot_2d, rnn_decoder
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
@@ -28,12 +28,12 @@ def train(train_set, test_set, idx2word, word2idx):
     encoder_lstm_size = 5
     encoder_embedding_size = 5
     encoder_vocabulary_length = len(idx2word)
-    encoder_sequence_size = train_set['features'].shape[1]
+    encoder_sequence_length = train_set['features'].shape[1]
 
     decoder_lstm_size = 5
     decoder_embedding_size = 5
     decoder_vocabulary_length = len(idx2word)
-    decoder_sequence_size = train_set['targets'].shape[1]
+    decoder_sequence_length = train_set['targets'].shape[1]
 
     # inference model
     with tf.name_scope('model'):
@@ -47,88 +47,55 @@ def train(train_set, test_set, idx2word, word2idx):
                 input=i,
                 length=encoder_vocabulary_length,
                 size=encoder_embedding_size,
-                name='embedding'
+                name='encoder_embedding'
         )
 
         with tf.name_scope("RNNEncoderCell"):
-            cell = LSTMCell(encoder_lstm_size, input_size=encoder_embedding_size)
+            cell = LSTMCell(
+                    num_units=encoder_lstm_size,
+                    input_size=encoder_embedding_size,
+                    use_peepholes=False
+            )
             initial_state = cell.zero_state(batch_size, tf.float32)
 
         encoder_outputs, encoder_states = rnn(
                 cell=cell,
-                input=encoder_embedding,
+                inputs=[encoder_embedding[:, j, :] for j in range(encoder_sequence_length)],
                 initial_state=initial_state,
-                sequence_size=encoder_sequence_size,
+                sequence_length=encoder_sequence_length,
                 name='RNNForwardEncoder'
         )
 
         final_encoder_state = encoder_states[-1]
 
         with tf.name_scope("RNNDecoderCell"):
-            cell = LSTMCell(encoder_lstm_size, input_size=decoder_embedding_size)
+            cell = LSTMCell(
+                    num_units=decoder_lstm_size,
+                    input_size=decoder_embedding_size,
+                    use_peepholes=False,
+            )
 
-        initial_embedding = tf.zeros(tf.pack([batch_size, decoder_embedding_size]), tf.float32)
-
-        decoder_embedding = tf.Variable(
-                tf.truncated_normal(
-                        [decoder_vocabulary_length, decoder_embedding_size],
-                        stddev=3.0 / math.sqrt(float(decoder_vocabulary_length * decoder_embedding_size))
-                ),
-                name='decoder_embedding'
+        decoder_states, decoder_outputs, decoder_outputs_softmax = rnn_decoder(
+                cell=cell,
+                initial_state=final_encoder_state,
+                embedding_size=decoder_embedding_size,
+                embedding_length=decoder_vocabulary_length,
+                sequence_length=decoder_sequence_length,
+                name='RNNDecoder'
         )
 
-        name = 'RNNDecoder'
-        with tf.variable_scope(name):
-            decoder_states = [final_encoder_state]
-            decoder_outputs = []
-            decoder_outputs_argmax = []
-            decoder_outputs_argmax_embedding = [initial_embedding]
-
-            for j in range(decoder_sequence_size):
-                with tf.variable_scope(tf.get_variable_scope(), reuse=True if j > 0 else None):
-
-                    output, state = cell(decoder_outputs_argmax_embedding[-1], decoder_states[-1])
-
-                    decoder_outputs.append(output)
-                    decoder_states.append(state)
-
-                    output_argmax = tf.argmax(output, 1)
-                    decoder_outputs_argmax.append(output_argmax)
-                    output_argmax_embedding = tf.nn.embedding_lookup(decoder_embedding, output_argmax)
-                    decoder_outputs_argmax_embedding.append(output_argmax_embedding)
-
-        name = 'RNNDecoderSoftmax'
-        with tf.variable_scope(name):
-            linears = []
-            softmaxs = []
-
-            for j, output in enumerate(decoder_outputs):
-                l = linear(
-                        input=output,
-                        input_size=decoder_lstm_size,
-                        output_size=decoder_vocabulary_length,
-                        name='linear'
-                )
-
-                linears.append(l)
-
-                p_o_i = tf.nn.softmax(l, name="softmax_output")
-
-                p_o_i = tf.expand_dims(p_o_i, 1)
-                softmaxs.append(p_o_i)
-
-            p_o_i = tf.concat(1, softmaxs)
+        p_o_i = tf.concat(1, decoder_outputs_softmax)
 
     with tf.name_scope('loss'):
-        # one_hot_labels = dense_to_one_hot(o, encoder_vocabulary_length)
-        # loss = tf.reduce_mean(-one_hot_labels * tf.log(p_o_i), name='loss')
-        loss = tf.constant(0.0, dtype=tf.float32)
+        one_hot_labels = dense_to_one_hot_2d(o, decoder_vocabulary_length)
+        loss = tf.reduce_mean(-one_hot_labels * tf.log(p_o_i), name='loss')
+        # loss = tf.constant(0.0, dtype=tf.float32)
         tf.scalar_summary('loss', loss)
 
     with tf.name_scope('accuracy'):
-        # correct_prediction = tf.equal(tf.argmax(one_hot_labels, 1), tf.argmax(p_o_i, 1))
-        # accuracy = tf.reduce_mean(tf.cast(correct_prediction, 'float'))
-        accuracy = tf.constant(0.0, dtype=tf.float32)
+        correct_prediction = tf.equal(tf.argmax(one_hot_labels, 2), tf.argmax(p_o_i, 2))
+        accuracy = tf.reduce_mean(tf.cast(correct_prediction, 'float'))
+        # accuracy = tf.constant(0.0, dtype=tf.float32)
         tf.scalar_summary('accuracy', accuracy)
 
     with tf.Session() as sess:
@@ -138,11 +105,11 @@ def train(train_set, test_set, idx2word, word2idx):
         saver = tf.train.Saver()
 
         # training
-        # train_op = tf.train.AdamOptimizer(FLAGS.learning_rate, name='trainer').minimize(loss)
+        train_op = tf.train.AdamOptimizer(FLAGS.learning_rate, name='trainer').minimize(loss)
         tf.initialize_all_variables().run()
 
         for epoch in range(FLAGS.max_epochs):
-            # sess.run(train_op, feed_dict={i: train_set['features'], o: train_set['targets']})
+            sess.run(train_op, feed_dict={i: train_set['features'], o: train_set['targets']})
 
             if epoch % max(int(FLAGS.max_epochs / 100), 1) == 0:
                 summary, lss, acc = sess.run([merged, loss, accuracy],
@@ -165,9 +132,17 @@ def train(train_set, test_set, idx2word, word2idx):
         print(test_set['targets'])
         print('Predictions')
         p_o_i = sess.run(p_o_i, feed_dict={i: test_set['features'], o: test_set['targets']})
+        p_o_i_argmax = np.argmax(p_o_i, 2)
         print('Shape of predictions:', p_o_i.shape)
         print('Argmax predictions')
-        print(np.argmax(p_o_i, 2))
+        print(p_o_i_argmax)
+        print()
+        for i in range(p_o_i_argmax.shape[0]):
+            for j in range(p_o_i_argmax.shape[1]):
+                w = idx2word[p_o_i_argmax[i, j]]
+                if w not in ['_SOS_', '_EOS_']:
+                    print(w, end=' ')
+            print()
 
 
 def main(_):

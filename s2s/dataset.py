@@ -9,7 +9,7 @@ text_data = [
     ('What color is the moon', 'It is silver'),
     ('What color is sea', 'The color is blue'),
     ('What color is silver jewelery', 'The color is silver'),
-    ('What color is grass', 'the colors is green'),
+    ('What color is grass', 'the color is green'),
     ('Sky, what color is it', 'it is blue'),
     ('Sun, what color is it', 'the color is yellow'),
     ('I want chinese', 'Ok, you want chinese'),
@@ -122,13 +122,11 @@ def dataset():
 
     train_set = {
         'features': train_features,
-        'targets':  train_targets
+        'targets':  train_targets[:, 1:] # skip on SOS
     }
     test_set = {
         'features': test_features,
-        'targets':  test_targets
+        'targets':  test_targets[:, 1:] # skip on SOS
     }
-
-    print(train_targets)
 
     return train_set, test_set, idx2word, word2idx
