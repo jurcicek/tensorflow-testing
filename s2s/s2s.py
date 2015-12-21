@@ -85,18 +85,17 @@ def train(train_set, test_set, idx2word, word2idx):
             decoder_outputs_argmax_embedding = [initial_embedding]
 
             for j in range(decoder_sequence_size):
-                if j > 0:
-                    tf.get_variable_scope().reuse_variables()
+                with tf.variable_scope(tf.get_variable_scope(), reuse=True if j > 0 else None):
 
-                output, state = cell(decoder_outputs_argmax_embedding[-1], decoder_states[-1])
+                    output, state = cell(decoder_outputs_argmax_embedding[-1], decoder_states[-1])
 
-                decoder_outputs.append(output)
-                decoder_states.append(state)
+                    decoder_outputs.append(output)
+                    decoder_states.append(state)
 
-                output_argmax = tf.argmax(output, 1)
-                decoder_outputs_argmax.append(output_argmax)
-                output_argmax_embedding = tf.nn.embedding_lookup(decoder_embedding, output_argmax)
-                decoder_outputs_argmax_embedding.append(output_argmax_embedding)
+                    output_argmax = tf.argmax(output, 1)
+                    decoder_outputs_argmax.append(output_argmax)
+                    output_argmax_embedding = tf.nn.embedding_lookup(decoder_embedding, output_argmax)
+                    decoder_outputs_argmax_embedding.append(output_argmax_embedding)
 
         name = 'RNNDecoderSoftmax'
         with tf.variable_scope(name):

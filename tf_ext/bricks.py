@@ -71,13 +71,11 @@ def rnn(cell, input, initial_state, sequence_size, name='RNN'):
         states = [initial_state]
 
         for j in range(sequence_size):
-            if j > 0:
-                tf.get_variable_scope().reuse_variables()
+            with tf.variable_scope(tf.get_variable_scope(), reuse=True if j > 0 else None):
+                output, state = cell(input[:, j, :], states[-1])
 
-            output, state = cell(input[:, j, :], states[-1])
-
-            outputs.append(outputs)
-            states.append(state)
+                outputs.append(outputs)
+                states.append(state)
 
     return outputs, states
 
