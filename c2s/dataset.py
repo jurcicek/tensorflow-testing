@@ -9,11 +9,11 @@ text_data = [
         ('I am looking for a restaurant', 'restaurant'),
         ('Ok, you want a restaurant. What food should should serve?', 'restaurant'),
         ('Chinese and it should be in a cheap pricerange', 'restaurant chinese'),
-        ('Ok, you want a restaurant serving chinese food in a cheap price range.', 'restaurant chinese cheap'),
+        ('Ok, you want a restaurant serving Chinese food in a cheap price range.', 'restaurant chinese cheap'),
     ],
     [
         ('Greetings, how may I help you?', ''),
-        ('I am looking for a restaurant serving Indian food no french food', 'restaurant french'),
+        ('I am looking for a restaurant serving Chinese food no French food', 'restaurant french'),
         ('In what what pricerange?', 'restaurant french'),
         ('Something mid-priced please', 'restaurant french mid-priced'),
     ],
