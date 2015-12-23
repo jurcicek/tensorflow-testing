@@ -9,7 +9,7 @@ import tensorflow as tf
 
 sys.path.extend(['..'])
 
-from tf_ext.bricks import linear, dense_to_one_hot_2d, softmax_2d
+from tf_ext.bricks import linear, softmax_2d, dense_to_one_hot
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
@@ -121,7 +121,7 @@ def train(train_set, test_set):
         )
 
     with tf.name_scope('loss'):
-        one_hot_labels = dense_to_one_hot_2d(o, n_classes)
+        one_hot_labels = dense_to_one_hot(o, n_classes)
         loss = tf.reduce_mean(-one_hot_labels * tf.log(p_o_i), name='loss')
         tf.scalar_summary('loss', loss)
 

@@ -11,7 +11,7 @@ sys.path.extend(['..'])
 
 import dataset
 
-from tf_ext.bricks import linear, embedding, rnn, dense_to_one_hot, dense_to_one_hot_2d, rnn_decoder
+from tf_ext.bricks import linear, embedding, rnn, dense_to_one_hot, rnn_decoder
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
@@ -62,7 +62,6 @@ def train(train_set, test_set, idx2word, word2idx):
                 cell=cell,
                 inputs=[encoder_embedding[:, j, :] for j in range(encoder_sequence_length)],
                 initial_state=initial_state,
-                sequence_length=encoder_sequence_length,
                 name='RNNForwardEncoder'
         )
 
@@ -87,7 +86,7 @@ def train(train_set, test_set, idx2word, word2idx):
         p_o_i = tf.concat(1, decoder_outputs_softmax)
 
     with tf.name_scope('loss'):
-        one_hot_labels = dense_to_one_hot_2d(o, decoder_vocabulary_length)
+        one_hot_labels = dense_to_one_hot(o, decoder_vocabulary_length)
         loss = tf.reduce_mean(-one_hot_labels * tf.log(p_o_i), name='loss')
         # loss = tf.constant(0.0, dtype=tf.float32)
         tf.scalar_summary('loss', loss)

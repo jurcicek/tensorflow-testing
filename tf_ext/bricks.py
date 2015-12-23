@@ -65,13 +65,13 @@ def softmax_2d(input, n_classifiers, n_classes, name='softmax_2d'):
         return p_o_i
 
 
-def rnn(cell, inputs, initial_state, sequence_length, name='RNN'):
+def rnn(cell, inputs, initial_state, name='RNN', reuse=False):
     with tf.variable_scope(name):
         outputs = []
         states = [initial_state]
 
-        for j in range(sequence_length):
-            with tf.variable_scope(tf.get_variable_scope(), reuse=True if j > 0 else None):
+        for j in range(len(inputs)):
+            with tf.variable_scope(tf.get_variable_scope(), reuse=True if j > 0 or reuse else None):
                 output, state = cell(inputs[j], states[-1])
 
                 outputs.append(outputs)
@@ -80,19 +80,20 @@ def rnn(cell, inputs, initial_state, sequence_length, name='RNN'):
     return outputs, states
 
 
-def rnn_decoder(cell, initial_state, embedding_size, embedding_length, sequence_length, name='RNNDecoder'):
+def rnn_decoder(cell, initial_state, embedding_size, embedding_length, sequence_length, name='RNNDecoder', reuse=False):
     with tf.variable_scope(name):
         with tf.name_scope("decoder_embedding"):
-            batch_size = tf.shape(initial_state)[0]
-            initial_embedding = tf.zeros(tf.pack([batch_size, embedding_size]), tf.float32)
+            with tf.variable_scope(tf.get_variable_scope(), reuse=reuse):
+                batch_size = tf.shape(initial_state)[0]
+                initial_embedding = tf.zeros(tf.pack([batch_size, embedding_size]), tf.float32)
 
-            embedding_table = tf.Variable(
-                    tf.truncated_normal(
-                            [embedding_length, embedding_size],
-                            stddev=3.0 / math.sqrt(float(embedding_length * embedding_size))
-                    ),
-                    name='decoder_embedding'
-            )
+                embedding_table = tf.Variable(
+                        tf.truncated_normal(
+                                [embedding_length, embedding_size],
+                                stddev=3.0 / math.sqrt(float(embedding_length * embedding_size))
+                        ),
+                        name='decoder_embedding'
+                )
 
         decoder_states = [initial_state]
         decoder_outputs = []
@@ -100,7 +101,7 @@ def rnn_decoder(cell, initial_state, embedding_size, embedding_length, sequence_
         decoder_outputs_argmax_embedding = [initial_embedding]
 
         for j in range(sequence_length):
-            with tf.variable_scope(tf.get_variable_scope(), reuse=True if j > 0 else None):
+            with tf.variable_scope(tf.get_variable_scope(), reuse=True if j > 0 or reuse else None):
                 output, state = cell(decoder_outputs_argmax_embedding[-1], decoder_states[-1])
 
                 projection = linear(
@@ -123,47 +124,17 @@ def rnn_decoder(cell, initial_state, embedding_size, embedding_length, sequence_
     return decoder_states, decoder_outputs, decoder_outputs_softmax
 
 
-def dense_to_one_hot_2d(labels, n_classes):
-    """ Converts dense representation of labels (e.g. 0, 1, 1) into one hot encoding ( e.g. (1, 0, 0), (0, 1, 0), etc.
+def dense_to_one_hot(labels, n_classes):
+    with tf.name_scope('dense_to_one_hot_x'):
+        indices = tf.where(tf.greater_equal(labels, tf.zeros_like(labels)))
+        concated = tf.concat(1, [tf.to_int32(indices), tf.reshape(labels, [-1, 1])])
+        dim = tf.concat(0, [tf.shape(labels), tf.reshape(n_classes, [-1])])
 
-    :param labels: integer input labels for a given batch
-    :param n_classes: number of all different labels (classes)
-    :return: a 2D tensor with encoded labels using one hot encoding
-    """
-    with tf.name_scope('mutlitarget_dense_to_one_hot'):
-        batch_size = tf.shape(labels)[0]
-        n_classifiers = tf.shape(labels)[1]
-        labels = tf.reshape(labels, [-1, 1])
-        indices_1 = tf.reshape(tf.tile(tf.expand_dims(tf.range(0, batch_size), 1), tf.pack([1, n_classifiers])),
-                               [-1, 1])
-        indices_2 = tf.tile(tf.expand_dims(tf.range(0, n_classifiers), 1), tf.pack([batch_size, 1]))
-        concated = tf.concat(1, [indices_1, indices_2, labels])
         one_hot_labels = tf.sparse_to_dense(
                 concated,
-                tf.pack([batch_size, n_classifiers, n_classes]),
+                dim,
                 1.0,
                 0.0
         )
 
-    return one_hot_labels
-
-
-def dense_to_one_hot(labels, n_classes):
-    """ Converts dense representation of labels (e.g. 0, 1, 1) into one hot encoding ( e.g. (1, 0, 0), (0, 1, 0), etc.
-
-    :param labels: integer input labels for a given batch
-    :param n_classes: number of all different labels (classes)
-    :return: a 2D tensor with encoded labels using one hot encoding
-    """
-
-    batch_size = tf.size(labels)
-    indices = tf.expand_dims(tf.range(0, batch_size), 1)
-    concated = tf.concat(1, [indices, labels])
-    one_hot_labels = tf.sparse_to_dense(
-            concated,
-            tf.pack([batch_size, n_classes]),
-            1.0,
-            0.0
-    )
-
-    return one_hot_labels
+        return one_hot_labels

@@ -53,7 +53,6 @@ def train(train_set, test_set, idx2word, word2idx):
                 cell=cell,
                 inputs=[e[:, j, :] for j in range(sequence_size)],
                 initial_state=state,
-                sequence_length=sequence_size,
                 name='RNN'
         )
 
