@@ -86,26 +86,35 @@ def rnn(cell, inputs, initial_state, name='RNN', reuse=False):
             with tf.variable_scope(tf.get_variable_scope(), reuse=True if j > 0 else None):
                 output, state = cell(input, states[-1])
 
-                outputs.append(outputs)
+                outputs.append(output)
                 states.append(state)
+    # remove the initial state
+    states = states[1:]
 
     return outputs, states
 
 
-def brnn(cell_fw, cell_bw, inputs, initial_state, name='BidirectionalRNN', reuse=False):
+def brnn(cell_fw, cell_bw, inputs, initial_state_fw, initial_state_bw=None, name='BidirectionalRNN', reuse=False):
     """Bidirectional recurrent neural network.
 
     :param cell_fw: An instance of RNNCell, for the forward pass
     :param cell_bw: An instance of RNNCell, for the backward pass
     :param inputs: A list of tensors, each a tensor of shape [batch_size, cell.input_size]
-    :param initial_state: A tensors, each a tensor of shape [batch_size, cell.state_size]
+    :param initial_state_fw: A tensors, each a tensor of shape [batch_size, cell.state_size]
+    :param initial_state_bw: (Optional) A tensors, each a tensor of shape [batch_size, cell.state_size]
     :param name: A name of the variable scope for created or reused variables
     :param reuse: True if any created variables should be reused otherwise None.
     :return:
     """
+    if not initial_state_bw:
+        initial_state_bw = initial_state_fw
+
     with tf.variable_scope(name, reuse=reuse):
-        outputs_fw, states_fw = rnn(cell_fw, inputs, initial_state, name='ForwardRNN', reuse=reuse)
-        outputs_bw, states_bw = rnn(cell_bw, reversed(inputs), initial_state, name='BackwardRNN', reuse=reuse)
+        outputs_fw, states_fw = rnn(cell_fw, inputs, initial_state_fw, name='ForwardRNN', reuse=reuse)
+        outputs_bw, states_bw = rnn(cell_bw, reversed(inputs), initial_state_bw, name='BackwardRNN', reuse=reuse)
+
+        # print(outputs_fw, states_fw)
+        # print(outputs_bw, states_bw)
 
         outputs = [tf.concat(1, [fw, bw]) for fw, bw in zip(outputs_fw, reversed(outputs_bw))]
         states = [tf.concat(1, [fw, bw]) for fw, bw in zip(states_fw, reversed(states_bw))]
@@ -149,7 +158,8 @@ def rnn_decoder(cell, initial_state, embedding_size, embedding_length, sequence_
                 decoder_states.append(state)
 
                 softmax = tf.nn.softmax(projection, name="output_softmax")
-                output_argmax = tf.argmax(softmax, 1)
+                # we do no compute the gradient trough argmax
+                output_argmax = tf.stop_gradient(tf.argmax(softmax, 1))
                 output_argmax_embedding = tf.nn.embedding_lookup(embedding_table, output_argmax)
                 decoder_outputs_argmax_embedding.append(output_argmax_embedding)
 

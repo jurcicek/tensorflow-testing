@@ -12,17 +12,19 @@ sys.path.extend(['..'])
 
 import dataset
 
-from tf_ext.bricks import embedding, rnn, rnn_decoder, dense_to_one_hot
+from tf_ext.bricks import embedding, rnn, rnn_decoder, dense_to_one_hot, brnn
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('max_epochs', 1000, 'Number of epochs to run trainer.')
 flags.DEFINE_integer('batch_size', 2, 'Number of training examples in a batch.')
 flags.DEFINE_float('learning_rate', 0.001, 'Initial learning rate.')
+flags.DEFINE_float('decay', 0.99, 'AdamOptimiser learning rate decay.')
 flags.DEFINE_float('beta1', 0.009, 'AdamOptimiser 1st moment decay.')
 flags.DEFINE_float('beta2', 0.999, 'AdamOptimiser 2nd moment decay.')
 flags.DEFINE_float('epsilon', 1e-8, 'AdamOptimiser epsilon.')
-flags.DEFINE_float('regularization', 1e-2, 'Weight of regularization.')
+flags.DEFINE_float('regularization', 1e-3, 'Weight of regularization.')
+flags.DEFINE_float('max_gradient_norm', 1e1, 'Clip gradients to this norm.')
 flags.DEFINE_float('print_variables', False, 'Print all trainable variables.')
 
 """
@@ -61,13 +63,21 @@ def train(train_set, test_set, idx2word, word2idx):
                 name='encoder_embedding'
         )
 
-        with tf.name_scope("RNNTurnEncoderCell"):
-            cell = LSTMCell(
+        with tf.name_scope("RNNForwardTurnEncoderCell"):
+            cell_fw = LSTMCell(
                     num_units=encoder_lstm_size,
                     input_size=encoder_embedding_size,
                     use_peepholes=True
             )
-            initial_state = cell.zero_state(batch_size, tf.float32)
+            initial_state_fw = cell_fw.zero_state(batch_size, tf.float32)
+
+        with tf.name_scope("RNNBackwardTurnEncoderCell"):
+            cell_bw = LSTMCell(
+                    num_units=encoder_lstm_size,
+                    input_size=encoder_embedding_size,
+                    use_peepholes=True
+            )
+            initial_state_bw = cell_bw.zero_state(batch_size, tf.float32)
 
         # the input data has this dimensions
         # [#batch, #turn (sentence) in a conversation (a dialogue), #word in a turn (a sentence), # embedding dimension]
@@ -77,11 +87,13 @@ def train(train_set, test_set, idx2word, word2idx):
         encoder_states_2d = []
 
         for turn in range(conversation_length):
-            encoder_outputs, encoder_states = rnn(
-                    cell=cell,
+            encoder_outputs, encoder_states = brnn(
+                    cell_fw=cell_fw,
+                    cell_bw=cell_bw,
                     inputs=[encoder_embedding[:, turn, word, :] for word in range(encoder_sequence_length)],
-                    initial_state=initial_state,
-                    name='RNNTurnForwardEncoder',
+                    initial_state_fw=initial_state_fw,
+                    initial_state_bw=initial_state_bw,
+                    name='RNNTurnBidirectionalEncoder',
                     reuse=True if turn > 0 else None
             )
             encoder_outputs_2d.append(encoder_outputs)
@@ -98,7 +110,7 @@ def train(train_set, test_set, idx2word, word2idx):
         with tf.name_scope("RNNConversationEncoderCell"):
             cell = LSTMCell(
                     num_units=encoder_lstm_size,
-                    input_size=cell.state_size,
+                    input_size=cell_fw.state_size + cell_bw.state_size,
                     use_peepholes=True
             )
             initial_state = cell.zero_state(batch_size, tf.float32)
@@ -152,7 +164,7 @@ def train(train_set, test_set, idx2word, word2idx):
         one_hot_labels = dense_to_one_hot(o, decoder_vocabulary_length)
         loss = tf.reduce_mean(- one_hot_labels * tf.log(p_o_i), name='loss')
         for v in tf.trainable_variables():
-            for n in ['/W', '/B']:
+            for n in ['/W_', '/W:', '/B:']:
                 if n in v.name:
                     print('Regularization using', v.name)
                     loss += FLAGS.regularization * tf.reduce_mean(tf.pow(v, 2))
@@ -171,12 +183,24 @@ def train(train_set, test_set, idx2word, word2idx):
         saver = tf.train.Saver()
 
         # training
+
+        tvars = tf.trainable_variables()
+        learning_rate = tf.Variable(float(FLAGS.learning_rate), trainable=False)
+
         train_op = tf.train.AdamOptimizer(
-                FLAGS.learning_rate,
+                learning_rate=learning_rate,
                 beta1=FLAGS.beta1,
                 beta2=FLAGS.beta2,
                 epsilon=FLAGS.epsilon,
-                name='trainer').minimize(loss)
+                name='trainer')
+
+        learning_rate_decay_op = learning_rate.assign(learning_rate * FLAGS.decay)
+        global_step = tf.Variable(0, trainable=False)
+        gradients = tf.gradients(loss, tvars)
+        clipped_gradients, norm = tf.clip_by_global_norm(gradients, FLAGS.max_gradient_norm)
+        # clipped_gradients = [tf.clip_by_norm(g, FLAGS.max_gradient_norm) for g in gradients]
+        train_op = train_op.apply_gradients(zip(clipped_gradients, tvars), global_step=global_step)
+
         tf.initialize_all_variables().run()
 
         # prepare batch indexes
@@ -187,6 +211,8 @@ def train(train_set, test_set, idx2word, word2idx):
         batch_indexes = [[i, i + batch_size] for i in range(0, train_set_size, batch_size)]
         # print('Batch indexes', batch_indexes)
 
+        previous_accuracies = []
+        previous_losses = []
         for epoch in range(FLAGS.max_epochs):
             shuffle(batch_indexes)
             for batch in batch_indexes:
@@ -198,14 +224,25 @@ def train(train_set, test_set, idx2word, word2idx):
                         }
                 )
 
-            if epoch % max(int(FLAGS.max_epochs / 100), 1) == 0:
+            if epoch % max(min(int(FLAGS.max_epochs / 100), 100), 1) == 0:
                 summary, lss, acc = sess.run([merged, loss, accuracy],
                                              feed_dict={i: test_set['features'], o: test_set['targets']})
                 writer.add_summary(summary, epoch)
                 print()
                 print('Epoch: {epoch}'.format(epoch=epoch))
-                print(' - accuracy = {acc}'.format(acc=acc))
-                print(' - loss     = {lss}'.format(lss=lss))
+                print(' - accuracy      = {acc:f}'.format(acc=acc))
+                print(' - loss          = {lss:f}'.format(lss=lss))
+                print(' - learning rate = {lr:f}'.format(lr=learning_rate.eval()))
+
+                # decrease learning rate if no improvement was seen over last 3 times.
+                if len(previous_losses) > 2 and lss > max(previous_losses[-3:]):
+                    sess.run(learning_rate_decay_op)
+                previous_losses.append(lss)
+
+                # stop when reached a threshold maximum or when no improvement in the last 20 steps
+                previous_accuracies.append(acc)
+                if acc > 0.9999 or max(previous_accuracies) > max(previous_accuracies[-20:]):
+                    break
 
         save_path = saver.save(sess, "model.ckpt")
         print()
