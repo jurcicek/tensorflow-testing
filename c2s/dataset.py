@@ -5,11 +5,28 @@ import numpy as np
 # the text data is composed of conversations and each is composed of questions and answers
 text_data = [
     [
-        ('Hello, how can I help you?', ''),
-        ('I am looking for a restaurant', 'restaurant'),
-        ('Ok, you want a restaurant. What food should should serve?', 'restaurant'),
-        ('Chinese and it should be in a cheap pricerange', 'restaurant chinese'),
-        ('Ok, you want a restaurant serving Chinese food in a cheap price range.', 'restaurant chinese cheap'),
+        ('Hello, how may I help you?', ''),
+    ],
+    [
+        ('Greetings, What can I do for you?', ''),
+    ],
+    [
+        ('I am looking for a cheap restaurant serving French food', 'restaurant french cheap'),
+    ],
+    [
+        ('I would like to go to a mid-priced restaurant serving French food', 'restaurant french mid-priced'),
+    ],
+    [
+        ('Greetings, What can I do for you?', ''),
+        ('I am looking for a restaurant serving Chinese food no French food', 'restaurant french'),
+    ],
+    [
+        ('Greetings, What can I do for you?', ''),
+        ('I am looking for a restaurant serving French food no Chinese food', 'restaurant chinese'),
+    ],
+    [
+        ('Hello, how may I help you?', ''),
+        ('I would like to go to a expensive restaurant serving French food', 'restaurant french expensive'),
     ],
     [
         ('Greetings, how may I help you?', ''),
@@ -22,7 +39,14 @@ text_data = [
         ('I am looking for a cheap bar in the city centre', 'bar cheap centre'),
         ('There is no cheap bar in the city centre', 'bar cheap centre'),
         ('Ok, then I do not care about the pricerange.', 'bar centre'),
-    ]
+    ],
+    [
+        ('Hello, how can I help you?', ''),
+        ('I am looking for a restaurant', 'restaurant'),
+        ('Ok, you want a restaurant. What type of food should it serve?', 'restaurant'),
+        ('Chinese and it should be in a cheap pricerange', 'restaurant chinese'),
+        ('Ok, you want a restaurant serving Chinese food in a cheap pricerange.', 'restaurant chinese cheap'),
+    ],
 ]
 
 
@@ -45,6 +69,11 @@ def normalise(text_data):
 
         text_data_norm.append(cn)
     return text_data_norm
+
+def sort_by_conversation_length(text_data):
+    text_data.sort(key=lambda x: len(x))
+
+    return text_data
 
 
 def get_word2idx(idx2word):
@@ -95,7 +124,6 @@ def index_and_pad_conversation(conv_data, word2idx, max_length_c, max_length_q, 
 
         conv_data_pad.append((qi, ai))
 
-
     return conv_data_pad
 
 
@@ -128,6 +156,7 @@ def split_q_and_a(index_data):
 
 def dataset():
     norm_text_data = normalise(text_data)
+    norm_text_data = sort_by_conversation_length(norm_text_data)
     # print(norm_text_data)
 
     idx2word = get_idx2word(norm_text_data)
@@ -164,8 +193,8 @@ def dataset():
     train_features = np.asarray(train_features, dtype=np.int32)
     train_targets = np.asarray(train_targets, dtype=np.int32)
 
-    print(train_features)
-    print(train_targets)
+    # print(train_features)
+    # print(train_targets)
 
     test_features = train_features
     test_targets = train_targets

@@ -12,14 +12,16 @@ def linear(input, input_size, output_size, name='linear'):
     :param output_size: output dimension
     :param name: name of the operation
     """
-    with tf.name_scope(name):
-        W = tf.Variable(
-                tf.truncated_normal([input_size, output_size], stddev=3.0 / math.sqrt(float(input_size * output_size))),
-                name='W'
+    with tf.variable_scope(name):
+        W = tf.get_variable(
+                name='W',
+                shape=[input_size, output_size],
+                initializer=tf.truncated_normal_initializer(stddev=3.0 / math.sqrt(float(input_size * output_size))),
         )
-        b = tf.Variable(
-                tf.zeros([output_size]),
-                name='b'
+        b = tf.get_variable(
+                name='B',
+                shape=[output_size],
+                initializer=tf.truncated_normal_initializer(stddev=1e-9 / math.sqrt(float(input_size * output_size))),
         )
 
         y = tf.matmul(input, W) + b
@@ -42,9 +44,10 @@ def embedding(input, length, size, name='embedding'):
     :param name: str, name of the operation
     """
     with tf.name_scope(name):
-        embedding_table = tf.Variable(
-                tf.truncated_normal([length, size], stddev=3.0 / math.sqrt(float(length * size))),
-                name='embedding'
+        embedding_table = tf.get_variable(
+                name='embedding_table',
+                shape=[length, size],
+                initializer=tf.truncated_normal_initializer(stddev=3.0 / math.sqrt(float(length * size))),
         )
 
         y = tf.nn.embedding_lookup(embedding_table, input)
@@ -66,13 +69,22 @@ def softmax_2d(input, n_classifiers, n_classes, name='softmax_2d'):
 
 
 def rnn(cell, inputs, initial_state, name='RNN', reuse=False):
-    with tf.variable_scope(name):
+    """Forward recurrent neural network.
+
+    :param cell: An instance of RNNCell
+    :param inputs: A list of tensors, each a tensor of shape [batch_size, cell.input_size]
+    :param initial_state: A tensors, each a tensor of shape [batch_size, cell.state_size]
+    :param name: A name of the variable scope for created or reused variables
+    :param reuse: True if any created variables should be reused otherwise None.
+    :return:
+    """
+    with tf.variable_scope(name, reuse=reuse):
         outputs = []
         states = [initial_state]
 
-        for j in range(len(inputs)):
-            with tf.variable_scope(tf.get_variable_scope(), reuse=True if j > 0 or reuse else None):
-                output, state = cell(inputs[j], states[-1])
+        for j, input in enumerate(inputs):
+            with tf.variable_scope(tf.get_variable_scope(), reuse=True if j > 0 else None):
+                output, state = cell(input, states[-1])
 
                 outputs.append(outputs)
                 states.append(state)
@@ -80,20 +92,41 @@ def rnn(cell, inputs, initial_state, name='RNN', reuse=False):
     return outputs, states
 
 
-def rnn_decoder(cell, initial_state, embedding_size, embedding_length, sequence_length, name='RNNDecoder', reuse=False):
-    with tf.variable_scope(name):
-        with tf.name_scope("decoder_embedding"):
-            with tf.variable_scope(tf.get_variable_scope(), reuse=reuse):
-                batch_size = tf.shape(initial_state)[0]
-                initial_embedding = tf.zeros(tf.pack([batch_size, embedding_size]), tf.float32)
+def brnn(cell_fw, cell_bw, inputs, initial_state, name='BidirectionalRNN', reuse=False):
+    """Bidirectional recurrent neural network.
 
-                embedding_table = tf.Variable(
-                        tf.truncated_normal(
-                                [embedding_length, embedding_size],
-                                stddev=3.0 / math.sqrt(float(embedding_length * embedding_size))
-                        ),
-                        name='decoder_embedding'
-                )
+    :param cell_fw: An instance of RNNCell, for the forward pass
+    :param cell_bw: An instance of RNNCell, for the backward pass
+    :param inputs: A list of tensors, each a tensor of shape [batch_size, cell.input_size]
+    :param initial_state: A tensors, each a tensor of shape [batch_size, cell.state_size]
+    :param name: A name of the variable scope for created or reused variables
+    :param reuse: True if any created variables should be reused otherwise None.
+    :return:
+    """
+    with tf.variable_scope(name, reuse=reuse):
+        outputs_fw, states_fw = rnn(cell_fw, inputs, initial_state, name='ForwardRNN', reuse=reuse)
+        outputs_bw, states_bw = rnn(cell_bw, reversed(inputs), initial_state, name='BackwardRNN', reuse=reuse)
+
+        outputs = [tf.concat(1, [fw, bw]) for fw, bw in zip(outputs_fw, reversed(outputs_bw))]
+        states = [tf.concat(1, [fw, bw]) for fw, bw in zip(states_fw, reversed(states_bw))]
+
+    return outputs, states
+
+
+def rnn_decoder(cell, initial_state, embedding_size, embedding_length, sequence_length, name='RNNDecoder', reuse=False):
+    with tf.variable_scope(name, reuse=reuse):
+        # print(tf.get_variable_scope().reuse, tf.get_variable_scope().name)
+        with tf.name_scope("embedding"):
+            batch_size = tf.shape(initial_state)[0]
+            initial_embedding = tf.zeros(tf.pack([batch_size, embedding_size]), tf.float32)
+
+            embedding_table = tf.get_variable(
+                    name='embedding_table',
+                    shape=[embedding_length, embedding_size],
+                    initializer=tf.truncated_normal_initializer(
+                            stddev=3.0 / math.sqrt(float(embedding_length * embedding_size))
+                    ),
+            )
 
         decoder_states = [initial_state]
         decoder_outputs = []
@@ -101,20 +134,21 @@ def rnn_decoder(cell, initial_state, embedding_size, embedding_length, sequence_
         decoder_outputs_argmax_embedding = [initial_embedding]
 
         for j in range(sequence_length):
-            with tf.variable_scope(tf.get_variable_scope(), reuse=True if j > 0 or reuse else None):
+            with tf.variable_scope(tf.get_variable_scope(), reuse=True if j > 0 else None):
+                # print(tf.get_variable_scope().reuse, tf.get_variable_scope().name)
                 output, state = cell(decoder_outputs_argmax_embedding[-1], decoder_states[-1])
 
                 projection = linear(
                         input=output,
                         input_size=cell.output_size,
                         output_size=embedding_length,
-                        name='decoder_output_linear_projection'
+                        name='output_linear_projection'
                 )
 
                 decoder_outputs.append(projection)
                 decoder_states.append(state)
 
-                softmax = tf.nn.softmax(projection, name="decoder_output_softmax")
+                softmax = tf.nn.softmax(projection, name="output_softmax")
                 output_argmax = tf.argmax(softmax, 1)
                 output_argmax_embedding = tf.nn.embedding_lookup(embedding_table, output_argmax)
                 decoder_outputs_argmax_embedding.append(output_argmax_embedding)
@@ -125,7 +159,7 @@ def rnn_decoder(cell, initial_state, embedding_size, embedding_length, sequence_
 
 
 def dense_to_one_hot(labels, n_classes):
-    with tf.name_scope('dense_to_one_hot_x'):
+    with tf.name_scope('dense_to_one_hot'):
         indices = tf.where(tf.greater_equal(labels, tf.zeros_like(labels)))
         concated = tf.concat(1, [tf.to_int32(indices), tf.reshape(labels, [-1, 1])])
         dim = tf.concat(0, [tf.shape(labels), tf.reshape(n_classes, [-1])])
