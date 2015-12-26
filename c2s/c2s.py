@@ -30,13 +30,13 @@ flags.DEFINE_boolean('print_variables', False, 'Print all trainable variables.')
 
 """
 This code shows how to build and train a sequence to answer translation model.
-This model build bidirectional RNN layers before encoding a turn or a conversation using forward RNN.
+This model builds bidirectional RNN layers before encoding an utterance or a history using forward RNN.
 """
 
 
 def train(train_set, test_set, idx2word, word2idx):
-    with tf.variable_scope("conversation_length"):
-        conversation_length = train_set['features'].shape[1]
+    with tf.variable_scope("history_length"):
+        history_length = train_set['features'].shape[1]
 
     encoder_lstm_size = 5
     encoder_embedding_size = 5
@@ -65,8 +65,8 @@ def train(train_set, test_set, idx2word, word2idx):
                 name='encoder_embedding'
         )
 
-        with tf.name_scope("TurnsEncoder"):
-            with tf.name_scope("RNNForwardTurnEncoderCell_1"):
+        with tf.name_scope("UtterancesEncoder"):
+            with tf.name_scope("RNNForwardUtteranceEncoderCell_1"):
                 cell_fw_1 = LSTMCell(
                         num_units=encoder_lstm_size,
                         input_size=encoder_embedding_size,
@@ -74,7 +74,7 @@ def train(train_set, test_set, idx2word, word2idx):
                 )
                 initial_state_fw_1 = cell_fw_1.zero_state(batch_size, tf.float32)
 
-            with tf.name_scope("RNNBackwardTurnEncoderCell_1"):
+            with tf.name_scope("RNNBackwardUtteranceEncoderCell_1"):
                 cell_bw_1 = LSTMCell(
                         num_units=encoder_lstm_size,
                         input_size=encoder_embedding_size,
@@ -82,7 +82,7 @@ def train(train_set, test_set, idx2word, word2idx):
                 )
                 initial_state_bw_1 = cell_bw_1.zero_state(batch_size, tf.float32)
 
-            with tf.name_scope("RNNForwardTurnEncoderCell_2"):
+            with tf.name_scope("RNNForwardUtteranceEncoderCell_2"):
                 cell_fw_2 = LSTMCell(
                         num_units=encoder_lstm_size,
                         input_size=cell_fw_1.output_size + cell_bw_1.output_size,
@@ -91,28 +91,33 @@ def train(train_set, test_set, idx2word, word2idx):
                 initial_state_fw_2 = cell_fw_2.zero_state(batch_size, tf.float32)
 
             # the input data has this dimensions
-            # [#batch, #turn (sentence) in a conversation (a dialogue), #word in a turn (a sentence), # embedding dimension]
+            # [
+            #   #batch,
+            #   #utterance in a history (a dialogue),
+            #   #word in an utterance (a sentence),
+            #   embedding dimension
+            # ]
 
-            # encode all turns along the word axis
+            # encode all utterances along the word axis
             encoder_states_2d = []
 
-            for turn in range(conversation_length):
+            for utterance in range(history_length):
                 encoder_outputs, _ = brnn(
                         cell_fw=cell_fw_1,
                         cell_bw=cell_bw_1,
-                        inputs=[encoder_embedding[:, turn, word, :] for word in range(encoder_sequence_length)],
+                        inputs=[encoder_embedding[:, utterance, word, :] for word in range(encoder_sequence_length)],
                         initial_state_fw=initial_state_fw_1,
                         initial_state_bw=initial_state_bw_1,
-                        name='RNNTurnBidirectionalLayer',
-                        reuse=True if turn > 0 else None
+                        name='RNNUtteranceBidirectionalLayer',
+                        reuse=True if utterance > 0 else None
                 )
 
                 _, encoder_states = rnn(
                         cell=cell_fw_2,
                         inputs=encoder_outputs,
                         initial_state=initial_state_fw_2,
-                        name='RNNTurnForwardEncoder',
-                        reuse=True if turn > 0 else None
+                        name='RNNUtteranceForwardEncoder',
+                        reuse=True if utterance > 0 else None
                 )
 
                 # print(encoder_states[-1])
@@ -123,9 +128,9 @@ def train(train_set, test_set, idx2word, word2idx):
             encoder_states_2d = tf.concat(1, encoder_states_2d)
             # print('encoder_states_2d', encoder_states_2d)
 
-        with tf.name_scope("ConversationEncoder"):
-            # encode all conversations along the turn axis
-            with tf.name_scope("RNNFrowardConversationEncoderCell_1"):
+        with tf.name_scope("HistoryEncoder"):
+            # encode all histories along the utterance axis
+            with tf.name_scope("RNNFrowardHistoryEncoderCell_1"):
                 cell_fw_1 = LSTMCell(
                         num_units=encoder_lstm_size,
                         input_size=cell_fw_2.state_size,
@@ -133,7 +138,7 @@ def train(train_set, test_set, idx2word, word2idx):
                 )
                 initial_state_fw_1 = cell_fw_1.zero_state(batch_size, tf.float32)
 
-            with tf.name_scope("RNNBackwardConversationEncoderCell_1"):
+            with tf.name_scope("RNNBackwardHistoryEncoderCell_1"):
                 cell_bw_1 = LSTMCell(
                         num_units=encoder_lstm_size,
                         input_size=cell_fw_2.state_size,
@@ -141,7 +146,7 @@ def train(train_set, test_set, idx2word, word2idx):
                 )
                 initial_state_bw_1 = cell_fw_2.zero_state(batch_size, tf.float32)
 
-            with tf.name_scope("RNNFrowardConversationEncoderCell_2"):
+            with tf.name_scope("RNNFrowardHistoryEncoderCell_2"):
                 cell_fw_2 = LSTMCell(
                         num_units=encoder_lstm_size,
                         input_size=cell_fw_1.output_size + cell_bw_1.output_size,
@@ -152,10 +157,10 @@ def train(train_set, test_set, idx2word, word2idx):
             encoder_outputs, _ = brnn(
                     cell_fw=cell_fw_1,
                     cell_bw=cell_bw_1,
-                    inputs=[encoder_states_2d[:, turn, :] for turn in range(conversation_length)],
+                    inputs=[encoder_states_2d[:, utterance, :] for utterance in range(history_length)],
                     initial_state_fw=initial_state_fw_1,
                     initial_state_bw=initial_state_bw_1,
-                    name='RNNConversationBidirectionalLayer',
+                    name='RNNHistoryBidirectionalLayer',
                     reuse=None
             )
 
@@ -163,7 +168,7 @@ def train(train_set, test_set, idx2word, word2idx):
                     cell=cell_fw_2,
                     inputs=encoder_outputs,
                     initial_state=initial_state_fw_2,
-                    name='RNNConversationForwardEncoder',
+                    name='RNNHistoryForwardEncoder',
                     reuse=None
             )
 
@@ -175,7 +180,7 @@ def train(train_set, test_set, idx2word, word2idx):
                         use_peepholes=True,
                 )
 
-            # decode all conversations along the turn axis
+            # decode all histories along the utterance axis
             final_encoder_state = encoder_states[-1]
 
             decoder_states, decoder_outputs, decoder_outputs_softmax = rnn_decoder(
@@ -298,7 +303,7 @@ def train(train_set, test_set, idx2word, word2idx):
         # print(p_o_i_argmax)
         print()
         for i in range(p_o_i_argmax.shape[0]):
-            print('Conversation', i)
+            print('History', i)
 
             for j in range(test_set['features'].shape[1]):
                 utterance = []

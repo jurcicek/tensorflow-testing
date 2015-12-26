@@ -132,7 +132,8 @@ def index_and_pad_examples(examples, word2idx, max_length_history, max_length_ut
 def dataset():
     text_data = load('./data.json')
 
-    examples = gen_examples(text_data, mode='e2e')
+    # examples = gen_examples(text_data, mode='e2e')
+    examples = gen_examples(text_data, mode='tracker')
 
     norm_examples = normalize(examples)
     norm_examples = sort_by_conversation_length(norm_examples)
