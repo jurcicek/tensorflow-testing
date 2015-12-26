@@ -17,14 +17,14 @@ from tf_ext.optimizers import AdamPlusOptimizer
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('max_epochs', 1000, 'Number of epochs to run trainer.')
-flags.DEFINE_integer('batch_size', 2, 'Number of training examples in a batch.')
+flags.DEFINE_integer('batch_size', 5, 'Number of training examples in a batch.')
 flags.DEFINE_float('learning_rate', 0.001, 'Initial learning rate.')
 flags.DEFINE_float('decay', 0.9, 'AdamPlusOptimizer learning rate decay.')
 flags.DEFINE_float('beta1', 0.01, 'AdamPlusOptimizer 1st moment decay.')
 flags.DEFINE_float('beta2', 0.999, 'AdamPlusOptimizer 2nd moment decay.')
 flags.DEFINE_float('epsilon', 1e-5, 'AdamPlusOptimizer epsilon.')
 flags.DEFINE_float('pow', 0.7, 'AdamPlusOptimizer pow.')
-flags.DEFINE_float('regularization', 1e-3, 'Weight of regularization.')
+flags.DEFINE_float('regularization', 1e-4, 'Weight of regularization.')
 flags.DEFINE_float('max_gradient_norm', 5e0, 'Clip gradients to this norm.')
 flags.DEFINE_boolean('print_variables', False, 'Print all trainable variables.')
 
@@ -48,7 +48,7 @@ def train(train_set, test_set, idx2word, word2idx):
     decoder_embedding_size = 5
     decoder_vocabulary_length = len(idx2word)
     with tf.variable_scope("decoder_sequence_length"):
-        decoder_sequence_length = train_set['targets'].shape[2]
+        decoder_sequence_length = train_set['targets'].shape[1]
 
     # inference model
     with tf.name_scope('model'):
@@ -167,8 +167,7 @@ def train(train_set, test_set, idx2word, word2idx):
                     reuse=None
             )
 
-            decoder_p_o_i_2d = []
-
+        with tf.name_scope("Decoder"):
             with tf.name_scope("RNNDecoderCell"):
                 cell = LSTMCell(
                         num_units=decoder_lstm_size,
@@ -177,27 +176,19 @@ def train(train_set, test_set, idx2word, word2idx):
                 )
 
             # decode all conversations along the turn axis
-            for turn in range(conversation_length):
-                final_encoder_state = encoder_states[turn]
+            final_encoder_state = encoder_states[-1]
 
-                decoder_states, decoder_outputs, decoder_outputs_softmax = rnn_decoder(
-                        cell=cell,
-                        initial_state=final_encoder_state,
-                        embedding_size=decoder_embedding_size,
-                        embedding_length=decoder_vocabulary_length,
-                        sequence_length=decoder_sequence_length,
-                        name='RNNDecoder',
-                        reuse=True if turn > 0 else None
-                )
+            decoder_states, decoder_outputs, decoder_outputs_softmax = rnn_decoder(
+                    cell=cell,
+                    initial_state=final_encoder_state,
+                    embedding_size=decoder_embedding_size,
+                    embedding_length=decoder_vocabulary_length,
+                    sequence_length=decoder_sequence_length,
+                    name='RNNDecoder',
+                    reuse=False
+            )
 
-                # print('decoder_outputs_softmax', decoder_outputs_softmax[0])
-                p_o_i = tf.concat(1, decoder_outputs_softmax)
-                p_o_i = tf.expand_dims(p_o_i, 1)
-                # print('p_o_i', p_o_i)
-
-                decoder_p_o_i_2d.append(p_o_i)
-
-            p_o_i = tf.concat(1, decoder_p_o_i_2d)
+            p_o_i = tf.concat(1, decoder_outputs_softmax)
             # print(p_o_i)
 
     if FLAGS.print_variables:
@@ -215,9 +206,8 @@ def train(train_set, test_set, idx2word, word2idx):
         tf.scalar_summary('loss', loss)
 
     with tf.name_scope('accuracy'):
-        correct_prediction = tf.equal(tf.argmax(one_hot_labels, 3), tf.argmax(p_o_i, 3))
+        correct_prediction = tf.equal(tf.argmax(one_hot_labels, 2), tf.argmax(p_o_i, 2))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, 'float'))
-        # accuracy = tf.constant(0.0, dtype=tf.float32)
         tf.scalar_summary('accuracy', accuracy)
 
     with tf.Session() as sess:
@@ -302,7 +292,7 @@ def train(train_set, test_set, idx2word, word2idx):
         # print(test_set['targets'])
         print('Predictions')
         p_o_i = sess.run(p_o_i, feed_dict={i: test_set['features'], o: test_set['targets']})
-        p_o_i_argmax = np.argmax(p_o_i, 3)
+        p_o_i_argmax = np.argmax(p_o_i, 2)
         print('Shape of predictions:', p_o_i.shape)
         print('Argmax predictions')
         # print(p_o_i_argmax)
@@ -310,20 +300,29 @@ def train(train_set, test_set, idx2word, word2idx):
         for i in range(p_o_i_argmax.shape[0]):
             print('Conversation', i)
 
-            for j in range(p_o_i_argmax.shape[1]):
-                c = []
+            for j in range(test_set['features'].shape[1]):
+                utterance = []
                 for k in range(test_set['features'].shape[2]):
                     w = idx2word[test_set['features'][i, j, k]]
                     if w not in ['_SOS_', '_EOS_']:
-                        c.append(w)
+                        utterance.append(w)
+                print('U {j}: {c:80}'.format(j=j, c=' '.join(utterance)))
 
-                s = []
-                for k in range(p_o_i_argmax.shape[2]):
-                    w = idx2word[p_o_i_argmax[i, j, k]]
-                    if w not in ['_SOS_', '_EOS_']:
-                        s.append(w)
+            prediction = []
+            for j in range(p_o_i_argmax.shape[1]):
+                w = idx2word[p_o_i_argmax[i, j]]
+                if w not in ['_SOS_', '_EOS_']:
+                    prediction.append(w)
 
-                print('T {j}: {c:80} |> {s}'.format(j=j, c=' '.join(c), s=' '.join(s)))
+            print('P  : {t:80}'.format(t=' '.join(prediction)))
+
+            target = []
+            for j in range(test_set['targets'].shape[1]):
+                w = idx2word[test_set['targets'][i, j]]
+                if w not in ['_SOS_', '_EOS_']:
+                    target.append(w)
+
+            print('T  : {t:80}'.format(t=' '.join(target)))
             print()
 
 

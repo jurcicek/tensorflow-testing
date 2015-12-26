@@ -1,104 +1,97 @@
 #!/usr/bin/env python3
+import json
+from copy import deepcopy
 
 import numpy as np
 
-# the text data is composed of conversations and each is composed of questions and answers
-text_data = [
-    [
-        ('Hello, how may I help you?', ''),
-    ],
-    [
-        ('Greetings, What can I do for you?', ''),
-    ],
-    [
-        ('I am looking for a cheap restaurant serving French food', 'restaurant french cheap'),
-    ],
-    [
-        ('I would like to go to a mid-priced restaurant serving French food', 'restaurant french mid-priced'),
-    ],
-    [
-        ('Greetings, What can I do for you?', ''),
-        ('I am looking for a restaurant serving Chinese food no French food', 'restaurant french'),
-    ],
-    [
-        ('Greetings, What can I do for you?', ''),
-        ('I am looking for a restaurant serving French food no Chinese food', 'restaurant chinese'),
-    ],
-    [
-        ('Hello, how may I help you?', ''),
-        ('I would like to go to a expensive restaurant serving French food', 'restaurant french expensive'),
-    ],
-    [
-        ('Greetings, how may I help you?', ''),
-        ('I am looking for a restaurant serving Chinese food no French food', 'restaurant french'),
-        ('In what what pricerange?', 'restaurant french'),
-        ('Something mid-priced please', 'restaurant french mid-priced'),
-    ],
-    [
-        ('Greetings, how may I help you?', ''),
-        ('I am looking for a cheap bar in the city centre', 'bar cheap centre'),
-        ('There is no cheap bar in the city centre', 'bar cheap centre'),
-        ('Ok, then I do not care about the pricerange.', 'bar centre'),
-    ],
-    [
-        ('Hello, how can I help you?', ''),
-        ('I am looking for a restaurant', 'restaurant'),
-        ('Ok, you want a restaurant. What type of food should it serve?', 'restaurant'),
-        ('Chinese and it should be in a cheap pricerange', 'restaurant chinese'),
-        ('Ok, you want a restaurant serving Chinese food in a cheap pricerange.', 'restaurant chinese cheap'),
-    ],
-]
 
-
-def get_words(sentence):
-    for c in '?!.,':
-        sentence = sentence.replace(c, ' ').replace('  ', ' ')
-
-    return sentence.upper().split()
-
-
-def normalise(text_data):
-    text_data_norm = []
-    for c in text_data:
-        cn = []
-        for q, a in c:
-            q_words = get_words(q)
-            a_words = get_words(a)
-
-            cn.append((q_words, a_words))
-
-        text_data_norm.append(cn)
-    return text_data_norm
-
-def sort_by_conversation_length(text_data):
-    text_data.sort(key=lambda x: len(x))
+def load(file_name):
+    with open(file_name) as f:
+        text_data = json.load(f)
 
     return text_data
+
+
+def gen_examples(text_data, mode='tracker'):
+    examples = []
+    for conversation in text_data:
+        history = []
+        prev_turn = None
+        for turn in conversation:
+            target = None
+            if mode == 'tracker':
+                history.append(turn[0])
+                history.append(turn[1])
+                target = turn[2]  # the dialogue state
+            elif mode == 'e2e':
+                if prev_turn:
+                    history.append(prev_turn[0])
+                    history.append(prev_turn[1])
+                    target = turn[0]  # the dialogue state
+
+                prev_turn = turn
+
+            # print(history)
+            # print(target)
+
+            if target:
+                examples.append(deepcopy([history, target]))
+
+    return examples
+
+
+def get_words(utterance):
+    for c in '?!.,':
+        utterance = utterance.replace(c, ' ').replace('  ', ' ')
+
+    return utterance.upper().split()
+
+
+def normalize(examples):
+    norm_examples = []
+    for history, target in examples:
+        norm_history = []
+        for utterance in history:
+            utterance_words = get_words(utterance)
+            norm_history.append(utterance_words)
+
+        norm_target = get_words(target)
+
+        norm_examples.append([norm_history, norm_target])
+
+    return norm_examples
+
+
+def sort_by_conversation_length(examples):
+    examples.sort(key=lambda example: len(example[0]))
+
+    return examples
 
 
 def get_word2idx(idx2word):
     return dict([(w, i) for i, w in enumerate(idx2word)])
 
 
-def get_idx2word(text_data):
+def get_idx2word(examples):
     words = set(['_OOV_', '_SOS_', '_EOS_'])
 
-    for c in text_data:
-        for q, a in c:
-            words.update(q)
-            words.update(a)
+    for history, target in examples:
+        for utterance in history:
+            words.update(utterance)
+        words.update(target)
 
     idx2word = sorted(words)
 
     return idx2word
 
 
-def index_and_pad_sentence(sentence, word2idx, max_length, add_sos=True):
+def index_and_pad_utterance(utterance, word2idx, max_length, add_sos=True):
     if add_sos:
         s = [word2idx['_SOS_']]
     else:
         s = []
-    for w in sentence:
+
+    for w in utterance:
         s.append(word2idx.get(w, word2idx['_OOV_']))
 
     for w in range(max_length - len(s)):
@@ -107,85 +100,75 @@ def index_and_pad_sentence(sentence, word2idx, max_length, add_sos=True):
     return s
 
 
-def index_and_pad_conversation(conv_data, word2idx, max_length_c, max_length_q, max_length_a):
-    conv_data_pad = []
+def index_and_pad_history(history, word2idx, max_length_history, max_length_utterance):
+    index_pad_history = []
 
     # padding
-    for i in range(max_length_c - len(conv_data)):
-        qi = index_and_pad_sentence('', word2idx, max_length_q + 2)
-        ai = index_and_pad_sentence('', word2idx, max_length_a + 1, add_sos=False)
+    for i in range(max_length_history - len(history)):
+        ip_utterance = index_and_pad_utterance('', word2idx, max_length_utterance + 2)
 
-        conv_data_pad.append((qi, ai))
+        index_pad_history.append(ip_utterance)
 
     # the real data
-    for q, a in conv_data:
-        qi = index_and_pad_sentence(q, word2idx, max_length_q + 2)
-        ai = index_and_pad_sentence(a, word2idx, max_length_a + 1, add_sos=False)
+    for utterance in history:
+        ip_utterance = index_and_pad_utterance(utterance, word2idx, max_length_utterance + 2)
 
-        conv_data_pad.append((qi, ai))
+        index_pad_history.append(ip_utterance)
 
-    return conv_data_pad
-
-
-def index_and_pad_data(conv_data, word2idx, max_length_c, max_length_q, max_length_a):
-    conv_data_pad = []
-    for c in conv_data:
-        ci = index_and_pad_conversation(c, word2idx, max_length_c, max_length_q, max_length_a)
-
-        conv_data_pad.append(ci)
-
-    return conv_data_pad
+    return index_pad_history
 
 
-def split_q_and_a(index_data):
-    qc = []
-    ac = []
-    for c in index_data:
-        qd = []
-        ad = []
+def index_and_pad_examples(examples, word2idx, max_length_history, max_length_utterance, max_length_target):
+    index_pad_examples = []
+    for history, target in examples:
+        ip_history = index_and_pad_history(history, word2idx, max_length_history, max_length_utterance)
+        ip_target = index_and_pad_utterance(target, word2idx, max_length_target, add_sos=False)
 
-        for q, a in c:
-            qd.append(q)
-            ad.append(a)
+        index_pad_examples.append([ip_history, ip_target])
 
-        qc.append(qd)
-        ac.append(ad)
-
-    return qc, ac
+    return index_pad_examples
 
 
 def dataset():
-    norm_text_data = normalise(text_data)
-    norm_text_data = sort_by_conversation_length(norm_text_data)
-    # print(norm_text_data)
+    text_data = load('./data.json')
 
-    idx2word = get_idx2word(norm_text_data)
+    examples = gen_examples(text_data, mode='e2e')
+
+    norm_examples = normalize(examples)
+    norm_examples = sort_by_conversation_length(norm_examples)
+
+    # print(norm_examples)
+
+    idx2word = get_idx2word(norm_examples)
     word2idx = get_word2idx(idx2word)
 
     # print(idx2word)
     # print(word2idx)
 
-    max_length_c = 0
-    max_length_q = 0
-    max_length_a = 0
-    for c in norm_text_data:
-        for q, a in c:
-            max_length_q = max(max_length_q, len(q))
-            max_length_a = max(max_length_a, len(a))
+    max_length_history = 0
+    max_length_utterance = 0
+    max_length_target = 0
+    for history, target in norm_examples:
+        for utterance in history:
+            max_length_utterance = max(max_length_utterance, len(utterance))
 
-        max_length_c = max(max_length_c, len(c))
+        max_length_history = max(max_length_history, len(history))
+        max_length_target = max(max_length_target, len(target))
 
     # pad the data with _SOS_ and _EOS_ word symbols
-    index_data = index_and_pad_data(norm_text_data, word2idx, max_length_c, max_length_q, max_length_a)
+    index_examples = index_and_pad_examples(
+            norm_examples, word2idx, max_length_history, max_length_utterance, max_length_target
+    )
 
-    # print(index_data)
+    # print(index_examples)
 
-    # for i in index_data:
-    #     print(len(i))
-    #     for q, a in i:
-    #         print(len(q), len(a))
+    # for history, target in index_examples:
+    #     for utterance in history:
+    #         print('U', len(utterance), utterance)
+    #     print('T', len(target), target)
 
-    train_features, train_targets = split_q_and_a(index_data)
+    train_features = [history for history, _ in index_examples]
+    train_targets = [target for _, target in index_examples]
 
     # print(train_features)
     # print(train_targets)

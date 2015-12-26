@@ -108,7 +108,9 @@ class AdamPlusOptimizer(optimizer.Optimizer):
         self._pow_t = ops.convert_to_tensor(self._pow, name="pow")
 
     def _apply_dense(self, grad, var):
-        lr = self._lr_t
+        lr = (self._lr_t *
+              math_ops.sqrt(1 - self._beta2_power)
+              / (1 - self._beta1_power))
         # m_t = beta1 * m + (1 - beta1) * g_t
         m = self.get_slot(var, "m")
         m_scaled_g_values = grad * (1 - self._beta1_t)
@@ -127,7 +129,9 @@ class AdamPlusOptimizer(optimizer.Optimizer):
         return control_flow_ops.group(*[var_update, m_t, v_t])
 
     def _apply_sparse(self, grad, var):
-        lr = self._lr_t
+        lr = (self._lr_t *
+              math_ops.sqrt(1 - self._beta2_power)
+              / (1 - self._beta1_power))
         # m_t = beta1 * m + (1 - beta1) * g_t
         m = self.get_slot(var, "m")
         m_scaled_g_values = grad.values * (1 - self._beta1_t)

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import sys
+
 sys.path.extend(['..'])
 
 import numpy as np
@@ -7,7 +8,6 @@ import tensorflow as tf
 
 from tensorflow.python.ops.rnn_cell import LSTMCell
 from random import shuffle
-
 
 import dataset
 
@@ -20,11 +20,11 @@ flags.DEFINE_integer('max_epochs', 1000, 'Number of epochs to run trainer.')
 flags.DEFINE_integer('batch_size', 2, 'Number of training examples in a batch.')
 flags.DEFINE_float('learning_rate', 0.001, 'Initial learning rate.')
 flags.DEFINE_float('decay', 0.9, 'AdamPlusOptimizer learning rate decay.')
-flags.DEFINE_float('beta1', 0.009, 'AdamPlusOptimizer 1st moment decay.')
+flags.DEFINE_float('beta1', 0.01, 'AdamPlusOptimizer 1st moment decay.')
 flags.DEFINE_float('beta2', 0.999, 'AdamPlusOptimizer 2nd moment decay.')
 flags.DEFINE_float('epsilon', 1e-5, 'AdamPlusOptimizer epsilon.')
 flags.DEFINE_float('pow', 0.7, 'AdamPlusOptimizer pow.')
-flags.DEFINE_float('regularization', 1e-3, 'Weight of regularization.')
+flags.DEFINE_float('regularization', 1e-4, 'Weight of regularization.')
 flags.DEFINE_float('max_gradient_norm', 5e0, 'Clip gradients to this norm.')
 flags.DEFINE_boolean('print_variables', False, 'Print all trainable variables.')
 
