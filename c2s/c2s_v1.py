@@ -1,31 +1,32 @@
 #!/usr/bin/env python3
-from random import shuffle
+import sys
+sys.path.extend(['..'])
 
 import numpy as np
-import sys
-
 import tensorflow as tf
 
-from tensorflow.python.ops.rnn_cell import LSTMCell, GRUCell
+from tensorflow.python.ops.rnn_cell import LSTMCell
+from random import shuffle
 
-sys.path.extend(['..'])
 
 import dataset
 
 from tf_ext.bricks import embedding, rnn, rnn_decoder, dense_to_one_hot, brnn
+from tf_ext.optimizers import AdamPlusOptimizer
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('max_epochs', 1000, 'Number of epochs to run trainer.')
 flags.DEFINE_integer('batch_size', 2, 'Number of training examples in a batch.')
 flags.DEFINE_float('learning_rate', 0.001, 'Initial learning rate.')
-flags.DEFINE_float('decay', 0.99, 'AdamOptimiser learning rate decay.')
-flags.DEFINE_float('beta1', 0.009, 'AdamOptimiser 1st moment decay.')
-flags.DEFINE_float('beta2', 0.999, 'AdamOptimiser 2nd moment decay.')
-flags.DEFINE_float('epsilon', 1e-8, 'AdamOptimiser epsilon.')
+flags.DEFINE_float('decay', 0.9, 'AdamPlusOptimizer learning rate decay.')
+flags.DEFINE_float('beta1', 0.009, 'AdamPlusOptimizer 1st moment decay.')
+flags.DEFINE_float('beta2', 0.999, 'AdamPlusOptimizer 2nd moment decay.')
+flags.DEFINE_float('epsilon', 1e-5, 'AdamPlusOptimizer epsilon.')
+flags.DEFINE_float('pow', 0.7, 'AdamPlusOptimizer pow.')
 flags.DEFINE_float('regularization', 1e-3, 'Weight of regularization.')
-flags.DEFINE_float('max_gradient_norm', 1e1, 'Clip gradients to this norm.')
-flags.DEFINE_float('print_variables', False, 'Print all trainable variables.')
+flags.DEFINE_float('max_gradient_norm', 5e0, 'Clip gradients to this norm.')
+flags.DEFINE_boolean('print_variables', False, 'Print all trainable variables.')
 
 """
 This code shows how to build and train a sequence to answer translation model.
@@ -71,14 +72,6 @@ def train(train_set, test_set, idx2word, word2idx):
             )
             initial_state_fw = cell_fw.zero_state(batch_size, tf.float32)
 
-        with tf.name_scope("RNNBackwardTurnEncoderCell"):
-            cell_bw = LSTMCell(
-                    num_units=encoder_lstm_size,
-                    input_size=encoder_embedding_size,
-                    use_peepholes=True
-            )
-            initial_state_bw = cell_bw.zero_state(batch_size, tf.float32)
-
         # the input data has this dimensions
         # [#batch, #turn (sentence) in a conversation (a dialogue), #word in a turn (a sentence), # embedding dimension]
 
@@ -87,13 +80,11 @@ def train(train_set, test_set, idx2word, word2idx):
         encoder_states_2d = []
 
         for turn in range(conversation_length):
-            encoder_outputs, encoder_states = brnn(
-                    cell_fw=cell_fw,
-                    cell_bw=cell_bw,
+            encoder_outputs, encoder_states = rnn(
+                    cell=cell_fw,
                     inputs=[encoder_embedding[:, turn, word, :] for word in range(encoder_sequence_length)],
-                    initial_state_fw=initial_state_fw,
-                    initial_state_bw=initial_state_bw,
-                    name='RNNTurnBidirectionalEncoder',
+                    initial_state=initial_state_fw,
+                    name='RNNTurnForwardEncoder',
                     reuse=True if turn > 0 else None
             )
             encoder_outputs_2d.append(encoder_outputs)
@@ -110,7 +101,7 @@ def train(train_set, test_set, idx2word, word2idx):
         with tf.name_scope("RNNConversationEncoderCell"):
             cell = LSTMCell(
                     num_units=encoder_lstm_size,
-                    input_size=cell_fw.state_size + cell_bw.state_size,
+                    input_size=cell_fw.state_size,
                     use_peepholes=True
             )
             initial_state = cell.zero_state(batch_size, tf.float32)
@@ -187,11 +178,12 @@ def train(train_set, test_set, idx2word, word2idx):
         tvars = tf.trainable_variables()
         learning_rate = tf.Variable(float(FLAGS.learning_rate), trainable=False)
 
-        train_op = tf.train.AdamOptimizer(
+        train_op = AdamPlusOptimizer(
                 learning_rate=learning_rate,
                 beta1=FLAGS.beta1,
                 beta2=FLAGS.beta2,
                 epsilon=FLAGS.epsilon,
+                pow=FLAGS.pow,
                 name='trainer')
 
         learning_rate_decay_op = learning_rate.assign(learning_rate * FLAGS.decay)
