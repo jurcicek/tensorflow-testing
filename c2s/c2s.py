@@ -16,16 +16,20 @@ from tf_ext.optimizers import AdamPlusOptimizer
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
+flags.DEFINE_string('task', 'tracker', '"tracker" (dialogue state tracker) | '
+                                       '"e2e" (word to word dialogue management)')
 flags.DEFINE_integer('max_epochs', 1000, 'Number of epochs to run trainer.')
 flags.DEFINE_integer('batch_size', 5, 'Number of training examples in a batch.')
 flags.DEFINE_float('learning_rate', 0.001, 'Initial learning rate.')
 flags.DEFINE_float('decay', 0.9, 'AdamPlusOptimizer learning rate decay.')
 flags.DEFINE_float('beta1', 0.01, 'AdamPlusOptimizer 1st moment decay.')
-flags.DEFINE_float('beta2', 0.999, 'AdamPlusOptimizer 2nd moment decay.')
+flags.DEFINE_float('beta2', 0.995, 'AdamPlusOptimizer 2nd moment decay.')
 flags.DEFINE_float('epsilon', 1e-5, 'AdamPlusOptimizer epsilon.')
 flags.DEFINE_float('pow', 0.7, 'AdamPlusOptimizer pow.')
 flags.DEFINE_float('regularization', 1e-4, 'Weight of regularization.')
 flags.DEFINE_float('max_gradient_norm', 5e0, 'Clip gradients to this norm.')
+flags.DEFINE_float('use_inputs_prob_decay', 0.999, 'Decay of the probability of using '
+                                                   'the true targets during generation.')
 flags.DEFINE_boolean('print_variables', False, 'Print all trainable variables.')
 
 """
@@ -52,14 +56,15 @@ def train(train_set, test_set, idx2word, word2idx):
 
     # inference model
     with tf.name_scope('model'):
-        i = tf.placeholder("int32", name='input')
-        o = tf.placeholder("int32", name='true_output')
+        features = tf.placeholder("int32", name='features')
+        targets = tf.placeholder("int32", name='true_targets')
+        use_dropout_prob = tf.placeholder("float32", name='use_dropout_prob')
 
         with tf.variable_scope("batch_size"):
-            batch_size = tf.shape(i)[0]
+            batch_size = tf.shape(features)[0]
 
         encoder_embedding = embedding(
-                input=i,
+                input=features,
                 length=encoder_vocabulary_length,
                 size=encoder_embedding_size,
                 name='encoder_embedding'
@@ -173,6 +178,9 @@ def train(train_set, test_set, idx2word, word2idx):
             )
 
         with tf.name_scope("Decoder"):
+            use_inputs_prob = tf.Variable(1.0, name='use_inputs_prob', trainable=False)
+            use_inputs_prob_decay_op = use_inputs_prob.assign(use_inputs_prob * FLAGS.use_inputs_prob_decay)
+
             with tf.name_scope("RNNDecoderCell"):
                 cell = LSTMCell(
                         num_units=decoder_lstm_size,
@@ -185,15 +193,17 @@ def train(train_set, test_set, idx2word, word2idx):
 
             decoder_states, decoder_outputs, decoder_outputs_softmax = rnn_decoder(
                     cell=cell,
+                    inputs=[targets[:, word] for word in range(decoder_sequence_length)],
                     initial_state=final_encoder_state,
                     embedding_size=decoder_embedding_size,
                     embedding_length=decoder_vocabulary_length,
                     sequence_length=decoder_sequence_length,
                     name='RNNDecoder',
-                    reuse=False
+                    reuse=False,
+                    use_inputs_prob=use_inputs_prob
             )
 
-            p_o_i = tf.concat(1, decoder_outputs_softmax)
+            targets_give_features = tf.concat(1, decoder_outputs_softmax)
             # print(p_o_i)
 
     if FLAGS.print_variables:
@@ -201,8 +211,8 @@ def train(train_set, test_set, idx2word, word2idx):
             print(v.name)
 
     with tf.name_scope('loss'):
-        one_hot_labels = dense_to_one_hot(o, decoder_vocabulary_length)
-        loss = tf.reduce_mean(- one_hot_labels * tf.log(p_o_i), name='loss')
+        one_hot_labels = dense_to_one_hot(targets, decoder_vocabulary_length)
+        loss = tf.reduce_mean(- one_hot_labels * tf.log(targets_give_features), name='loss')
         for v in tf.trainable_variables():
             for n in ['/W_', '/W:', '/B:']:
                 if n in v.name:
@@ -211,7 +221,7 @@ def train(train_set, test_set, idx2word, word2idx):
         tf.scalar_summary('loss', loss)
 
     with tf.name_scope('accuracy'):
-        correct_prediction = tf.equal(tf.argmax(one_hot_labels, 2), tf.argmax(p_o_i, 2))
+        correct_prediction = tf.equal(tf.argmax(one_hot_labels, 2), tf.argmax(targets_give_features, 2))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, 'float'))
         tf.scalar_summary('accuracy', accuracy)
 
@@ -222,7 +232,6 @@ def train(train_set, test_set, idx2word, word2idx):
         saver = tf.train.Saver()
 
         # training
-
         tvars = tf.trainable_variables()
         learning_rate = tf.Variable(float(FLAGS.learning_rate), trainable=False)
 
@@ -260,20 +269,21 @@ def train(train_set, test_set, idx2word, word2idx):
                 sess.run(
                         train_op,
                         feed_dict={
-                            i: train_set['features'][batch[0]:batch[1]],
-                            o: train_set['targets'] [batch[0]:batch[1]]
+                            features: train_set['features'][batch[0]:batch[1]],
+                            targets: train_set['targets']  [batch[0]:batch[1]],
                         }
                 )
 
             if epoch % max(min(int(FLAGS.max_epochs / 100), 100), 1) == 0:
                 summary, lss, acc = sess.run([merged, loss, accuracy],
-                                             feed_dict={i: test_set['features'], o: test_set['targets']})
+                                             feed_dict={features: test_set['features'], targets: test_set['targets']})
                 writer.add_summary(summary, epoch)
                 print()
                 print('Epoch: {epoch}'.format(epoch=epoch))
-                print(' - accuracy      = {acc:f}'.format(acc=acc))
-                print(' - loss          = {lss:f}'.format(lss=lss))
-                print(' - learning rate = {lr:f}'.format(lr=learning_rate.eval()))
+                print(' - accuracy        = {acc:f}'.format(acc=acc))
+                print(' - loss            = {lss:f}'.format(lss=lss))
+                print(' - learning rate   = {lr:f}'.format(lr=learning_rate.eval()))
+                print(' - use inputs prob = {uip:f}'.format(uip=use_inputs_prob.eval()))
 
                 # decrease learning rate if no improvement was seen over last 3 times.
                 if len(previous_losses) > 2 and lss > max(previous_losses[-3:]):
@@ -284,6 +294,8 @@ def train(train_set, test_set, idx2word, word2idx):
                 previous_accuracies.append(acc)
                 if acc > 0.9999 or max(previous_accuracies) > max(previous_accuracies[-20:]):
                     break
+
+            sess.run(use_inputs_prob_decay_op)
 
         save_path = saver.save(sess, "model.ckpt")
         print()
@@ -296,26 +308,27 @@ def train(train_set, test_set, idx2word, word2idx):
         print('Shape of targets:', test_set['targets'].shape)
         # print(test_set['targets'])
         print('Predictions')
-        p_o_i = sess.run(p_o_i, feed_dict={i: test_set['features'], o: test_set['targets']})
-        p_o_i_argmax = np.argmax(p_o_i, 2)
-        print('Shape of predictions:', p_o_i.shape)
+        targets_give_features = sess.run(targets_give_features,
+                                         feed_dict={features: test_set['features'], targets: test_set['targets']})
+        targets_given_features_argmax = np.argmax(targets_give_features, 2)
+        print('Shape of predictions:', targets_give_features.shape)
         print('Argmax predictions')
         # print(p_o_i_argmax)
         print()
-        for i in range(p_o_i_argmax.shape[0]):
-            print('History', i)
+        for features in range(targets_given_features_argmax.shape[0]):
+            print('History', features)
 
             for j in range(test_set['features'].shape[1]):
                 utterance = []
                 for k in range(test_set['features'].shape[2]):
-                    w = idx2word[test_set['features'][i, j, k]]
+                    w = idx2word[test_set['features'][features, j, k]]
                     if w not in ['_SOS_', '_EOS_']:
                         utterance.append(w)
                 print('U {j}: {c:80}'.format(j=j, c=' '.join(utterance)))
 
             prediction = []
-            for j in range(p_o_i_argmax.shape[1]):
-                w = idx2word[p_o_i_argmax[i, j]]
+            for j in range(targets_given_features_argmax.shape[1]):
+                w = idx2word[targets_given_features_argmax[features, j]]
                 if w not in ['_SOS_', '_EOS_']:
                     prediction.append(w)
 
@@ -323,7 +336,7 @@ def train(train_set, test_set, idx2word, word2idx):
 
             target = []
             for j in range(test_set['targets'].shape[1]):
-                w = idx2word[test_set['targets'][i, j]]
+                w = idx2word[test_set['targets'][features, j]]
                 if w not in ['_SOS_', '_EOS_']:
                     target.append(w)
 
@@ -332,7 +345,10 @@ def train(train_set, test_set, idx2word, word2idx):
 
 
 def main(_):
-    train_set, test_set, idx2word, word2idx = dataset.dataset()
+    print('-' * 120)
+    print('C2S Task: {t}'.format(t=FLAGS.task))
+    print('-' * 120)
+    train_set, test_set, idx2word, word2idx = dataset.dataset(mode=FLAGS.task)
 
     train(train_set, test_set, idx2word, word2idx)
 

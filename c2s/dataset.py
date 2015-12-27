@@ -6,6 +6,11 @@ import numpy as np
 
 
 def load(file_name):
+    """Load a json file - file_name.
+
+    :param file_name: a name of the json file
+    :return: the Python representation of the json file
+    """
     with open(file_name) as f:
         text_data = json.load(f)
 
@@ -13,6 +18,15 @@ def load(file_name):
 
 
 def gen_examples(text_data, mode='tracker'):
+    """Generates training examples for the conversation to sequence model. Here, we experiment with conversational models
+    that is converting a conversational history into dialogue state representation (dialogue state tracking) or generation
+    a textual response given the conversation history (dialogue policy).
+
+    :param text_data: a list of conversation each composed of (system_output, user_input, dialogue state) tuples
+    :param mode: "tracker" - generate examples for dialogue state tracking,
+                 "e2e      - e2e generates examples word to word dialogue management
+    :return: a transformed text_data into a series of training/development/testing examples
+    """
     examples = []
     for conversation in text_data:
         history = []
@@ -41,6 +55,12 @@ def gen_examples(text_data, mode='tracker'):
 
 
 def get_words(utterance):
+    """Splits an utterance into words, removes some characters not available in spoken dialogue systems,
+    uppercases the text.
+
+    :param utterance: a string
+    :return: a list of string (words)
+    """
     for c in '?!.,':
         utterance = utterance.replace(c, ' ').replace('  ', ' ')
 
@@ -73,14 +93,15 @@ def get_word2idx(idx2word):
 
 
 def get_idx2word(examples):
-    words = set(['_OOV_', '_SOS_', '_EOS_'])
+    words = set()
 
     for history, target in examples:
         for utterance in history:
             words.update(utterance)
         words.update(target)
 
-    idx2word = sorted(words)
+    idx2word = ['_SOS_', '_EOS_', '_OOV_']
+    idx2word.extend(sorted(words))
 
     return idx2word
 
@@ -129,11 +150,11 @@ def index_and_pad_examples(examples, word2idx, max_length_history, max_length_ut
     return index_pad_examples
 
 
-def dataset():
+def dataset(mode):
     text_data = load('./data.json')
 
     # examples = gen_examples(text_data, mode='e2e')
-    examples = gen_examples(text_data, mode='tracker')
+    examples = gen_examples(text_data, mode)
 
     norm_examples = normalize(examples)
     norm_examples = sort_by_conversation_length(norm_examples)

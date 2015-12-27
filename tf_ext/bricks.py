@@ -88,6 +88,7 @@ def rnn(cell, inputs, initial_state, name='RNN', reuse=False):
 
                 outputs.append(output)
                 states.append(state)
+
     # remove the initial state
     states = states[1:]
 
@@ -122,13 +123,12 @@ def brnn(cell_fw, cell_bw, inputs, initial_state_fw, initial_state_bw=None, name
     return outputs, states
 
 
-def rnn_decoder(cell, initial_state, embedding_size, embedding_length, sequence_length, name='RNNDecoder', reuse=False):
+def rnn_decoder(cell, inputs, initial_state, embedding_size, embedding_length, sequence_length,
+                name='RNNDecoder', reuse=False, use_inputs_prob=0.0):
     with tf.variable_scope(name, reuse=reuse):
         # print(tf.get_variable_scope().reuse, tf.get_variable_scope().name)
         with tf.name_scope("embedding"):
             batch_size = tf.shape(initial_state)[0]
-            initial_embedding = tf.zeros(tf.pack([batch_size, embedding_size]), tf.float32)
-
             embedding_table = tf.get_variable(
                     name='embedding_table',
                     shape=[embedding_length, embedding_size],
@@ -136,16 +136,28 @@ def rnn_decoder(cell, initial_state, embedding_size, embedding_length, sequence_
                             stddev=3.0 / math.sqrt(float(embedding_length * embedding_size))
                     ),
             )
+            # 0 is index for _SOS_ (start of sentence symbol)
+            initial_embedding = tf.nn.embedding_lookup(embedding_table, tf.zeros(tf.pack([batch_size]), tf.int32))
 
-        decoder_states = [initial_state]
-        decoder_outputs = []
-        decoder_outputs_softmax = []
-        decoder_outputs_argmax_embedding = [initial_embedding]
+        states = [initial_state]
+        outputs = []
+        outputs_softmax = []
+        decoder_outputs_argmax_embedding = []
 
         for j in range(sequence_length):
             with tf.variable_scope(tf.get_variable_scope(), reuse=True if j > 0 else None):
+                # get input :
+                #   either feedback the previous decoder argmax output
+                #   or use the provided input (note that you have to use the previous input (index si therefore -1)
+                input = initial_embedding
+                if j > 0:
+                    true_input = tf.nn.embedding_lookup(embedding_table, inputs[j-1])
+                    decoded_input = decoder_outputs_argmax_embedding[-1]
+                    choice = tf.floor(tf.random_uniform([1], use_inputs_prob, 1+use_inputs_prob, tf.float32))
+                    input = choice * true_input + (1.0 - choice) * decoded_input
+
                 # print(tf.get_variable_scope().reuse, tf.get_variable_scope().name)
-                output, state = cell(decoder_outputs_argmax_embedding[-1], decoder_states[-1])
+                output, state = cell(input, states[-1])
 
                 projection = linear(
                         input=output,
@@ -154,18 +166,22 @@ def rnn_decoder(cell, initial_state, embedding_size, embedding_length, sequence_
                         name='output_linear_projection'
                 )
 
-                decoder_outputs.append(projection)
-                decoder_states.append(state)
+                outputs.append(projection)
+                states.append(state)
 
                 softmax = tf.nn.softmax(projection, name="output_softmax")
                 # we do no compute the gradient trough argmax
                 output_argmax = tf.stop_gradient(tf.argmax(softmax, 1))
-                output_argmax_embedding = tf.nn.embedding_lookup(embedding_table, output_argmax)
+                # we do no compute the gradient for embeddings when used with noisy argmax outputs
+                output_argmax_embedding = tf.stop_gradient(tf.nn.embedding_lookup(embedding_table, output_argmax))
                 decoder_outputs_argmax_embedding.append(output_argmax_embedding)
 
-                decoder_outputs_softmax.append(tf.expand_dims(softmax, 1))
+                outputs_softmax.append(tf.expand_dims(softmax, 1))
 
-    return decoder_states, decoder_outputs, decoder_outputs_softmax
+    # remove the initial state
+    states = states[1:]
+
+    return states, outputs, outputs_softmax
 
 
 def dense_to_one_hot(labels, n_classes):
