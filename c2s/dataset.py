@@ -93,17 +93,21 @@ def get_word2idx(idx2word):
 
 
 def get_idx2word(examples):
-    words = set()
+    words_history = set()
+    words_target = set()
 
     for history, target in examples:
         for utterance in history:
-            words.update(utterance)
-        words.update(target)
+            words_history.update(utterance)
+        words_target.update(target)
 
-    idx2word = ['_SOS_', '_EOS_', '_OOV_']
-    idx2word.extend(sorted(words))
+    idx2word_history = ['_SOS_', '_EOS_', '_OOV_']
+    idx2word_history.extend(sorted(words_history))
 
-    return idx2word
+    idx2word_target = ['_SOS_', '_EOS_', '_OOV_']
+    idx2word_target.extend(sorted(words_target))
+
+    return idx2word_history, idx2word_target
 
 
 def index_and_pad_utterance(utterance, word2idx, max_length, add_sos=True):
@@ -139,11 +143,12 @@ def index_and_pad_history(history, word2idx, max_length_history, max_length_utte
     return index_pad_history
 
 
-def index_and_pad_examples(examples, word2idx, max_length_history, max_length_utterance, max_length_target):
+def index_and_pad_examples(examples, word2idx_history, max_length_history, max_length_utterance,
+                           word2idx_target, max_length_target):
     index_pad_examples = []
     for history, target in examples:
-        ip_history = index_and_pad_history(history, word2idx, max_length_history, max_length_utterance)
-        ip_target = index_and_pad_utterance(target, word2idx, max_length_target, add_sos=False)
+        ip_history = index_and_pad_history(history, word2idx_history, max_length_history, max_length_utterance)
+        ip_target = index_and_pad_utterance(target, word2idx_target, max_length_target, add_sos=False)
 
         index_pad_examples.append([ip_history, ip_target])
 
@@ -161,11 +166,15 @@ def dataset(mode):
 
     # print(norm_examples)
 
-    idx2word = get_idx2word(norm_examples)
-    word2idx = get_word2idx(idx2word)
+    idx2word_history, idx2word_target = get_idx2word(norm_examples)
+    word2idx_history = get_word2idx(idx2word_history)
+    word2idx_target = get_word2idx(idx2word_target)
 
-    # print(idx2word)
-    # print(word2idx)
+    # print(idx2word_history)
+    # print(word2idx_history)
+    # print()
+    # print(idx2word_target)
+    # print(word2idx_target)
 
     max_length_history = 0
     max_length_utterance = 0
@@ -179,7 +188,8 @@ def dataset(mode):
 
     # pad the data with _SOS_ and _EOS_ word symbols
     index_examples = index_and_pad_examples(
-            norm_examples, word2idx, max_length_history, max_length_utterance, max_length_target
+            norm_examples, word2idx_history, max_length_history, max_length_utterance,
+            word2idx_target, max_length_target
     )
 
     # print(index_examples)
@@ -213,4 +223,4 @@ def dataset(mode):
         'targets':  test_targets
     }
 
-    return train_set, test_set, idx2word, word2idx
+    return train_set, test_set, idx2word_history, word2idx_history, idx2word_target, word2idx_target

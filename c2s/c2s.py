@@ -38,19 +38,19 @@ This model builds bidirectional RNN layers before encoding an utterance or a his
 """
 
 
-def train(train_set, test_set, idx2word, word2idx):
+def train(train_set, test_set, idx2word_history, word2idx_history, idx2word_target, word2idx_target):
     with tf.variable_scope("history_length"):
         history_length = train_set['features'].shape[1]
 
     encoder_lstm_size = 5
     encoder_embedding_size = 5
-    encoder_vocabulary_length = len(idx2word)
+    encoder_vocabulary_length = len(idx2word_history)
     with tf.variable_scope("encoder_sequence_length"):
         encoder_sequence_length = train_set['features'].shape[2]
 
     decoder_lstm_size = 5
     decoder_embedding_size = 5
-    decoder_vocabulary_length = len(idx2word)
+    decoder_vocabulary_length = len(idx2word_target)
     with tf.variable_scope("decoder_sequence_length"):
         decoder_sequence_length = train_set['targets'].shape[1]
 
@@ -321,14 +321,14 @@ def train(train_set, test_set, idx2word, word2idx):
             for j in range(test_set['features'].shape[1]):
                 utterance = []
                 for k in range(test_set['features'].shape[2]):
-                    w = idx2word[test_set['features'][features, j, k]]
+                    w = idx2word_history[test_set['features'][features, j, k]]
                     if w not in ['_SOS_', '_EOS_']:
                         utterance.append(w)
                 print('U {j}: {c:80}'.format(j=j, c=' '.join(utterance)))
 
             prediction = []
             for j in range(targets_given_features_argmax.shape[1]):
-                w = idx2word[targets_given_features_argmax[features, j]]
+                w = idx2word_target[targets_given_features_argmax[features, j]]
                 if w not in ['_SOS_', '_EOS_']:
                     prediction.append(w)
 
@@ -336,7 +336,7 @@ def train(train_set, test_set, idx2word, word2idx):
 
             target = []
             for j in range(test_set['targets'].shape[1]):
-                w = idx2word[test_set['targets'][features, j]]
+                w = idx2word_target[test_set['targets'][features, j]]
                 if w not in ['_SOS_', '_EOS_']:
                     target.append(w)
 
@@ -348,9 +348,9 @@ def main(_):
     print('-' * 120)
     print('C2S Task: {t}'.format(t=FLAGS.task))
     print('-' * 120)
-    train_set, test_set, idx2word, word2idx = dataset.dataset(mode=FLAGS.task)
+    train_set, test_set, idx2word_history, word2idx_history, idx2word_target, word2idx_target = dataset.dataset(mode=FLAGS.task)
 
-    train(train_set, test_set, idx2word, word2idx)
+    train(train_set, test_set, idx2word_history, word2idx_history, idx2word_target, word2idx_target)
 
 
 if __name__ == '__main__':
