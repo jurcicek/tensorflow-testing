@@ -5,7 +5,7 @@ from copy import deepcopy
 import numpy as np
 
 
-def load(file_name):
+def load_json_data(file_name):
     """Load a json file - file_name.
 
     :param file_name: a name of the json file
@@ -155,14 +155,15 @@ def index_and_pad_examples(examples, word2idx_history, max_length_history, max_l
     return index_pad_examples
 
 
-def dataset(mode):
-    text_data = load('./data.json')
+def load(mode, text_data_fn):
+    text_data = load_json_data(text_data_fn)
 
-    # examples = gen_examples(text_data, mode='e2e')
     examples = gen_examples(text_data, mode)
 
     norm_examples = normalize(examples)
     norm_examples = sort_by_conversation_length(norm_examples)
+    # remove 10 % of the longest dialogues this will half the length of the conversations
+    norm_examples = norm_examples[:-int(len(norm_examples)/10)]
 
     # print(norm_examples)
 

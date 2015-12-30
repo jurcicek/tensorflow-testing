@@ -11,21 +11,23 @@ from random import shuffle
 
 import dataset
 
-from tf_ext.bricks import embedding, rnn, rnn_decoder, dense_to_one_hot, brnn
+from tf_ext.bricks import embedding, rnn, rnn_decoder, dense_to_one_hot, brnn, device_for_node_cpu, \
+    device_for_node_gpu_matmul
 from tf_ext.optimizers import AdamPlusOptimizer
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_string('task', 'tracker', '"tracker" (dialogue state tracker) | '
                                        '"e2e" (word to word dialogue management)')
+flags.DEFINE_string('data', './data.handcrafted.json', 'The data the model should be trained on.')
 flags.DEFINE_integer('max_epochs', 1000, 'Number of epochs to run trainer.')
 flags.DEFINE_integer('batch_size', 5, 'Number of training examples in a batch.')
 flags.DEFINE_float('learning_rate', 0.001, 'Initial learning rate.')
 flags.DEFINE_float('decay', 0.9, 'AdamPlusOptimizer learning rate decay.')
 flags.DEFINE_float('beta1', 0.01, 'AdamPlusOptimizer 1st moment decay.')
-flags.DEFINE_float('beta2', 0.995, 'AdamPlusOptimizer 2nd moment decay.')
+flags.DEFINE_float('beta2', 0.999, 'AdamPlusOptimizer 2nd moment decay.')
 flags.DEFINE_float('epsilon', 1e-5, 'AdamPlusOptimizer epsilon.')
-flags.DEFINE_float('pow', 0.7, 'AdamPlusOptimizer pow.')
+flags.DEFINE_float('pow', 0.6, 'AdamPlusOptimizer pow.')
 flags.DEFINE_float('regularization', 1e-4, 'Weight of regularization.')
 flags.DEFINE_float('max_gradient_norm', 5e0, 'Clip gradients to this norm.')
 flags.DEFINE_float('use_inputs_prob_decay', 0.999, 'Decay of the probability of using '
@@ -42,14 +44,14 @@ def train(train_set, test_set, idx2word_history, word2idx_history, idx2word_targ
     with tf.variable_scope("history_length"):
         history_length = train_set['features'].shape[1]
 
-    encoder_lstm_size = 5
-    encoder_embedding_size = 5
+    encoder_lstm_size = 15
+    encoder_embedding_size = 15
     encoder_vocabulary_length = len(idx2word_history)
     with tf.variable_scope("encoder_sequence_length"):
         encoder_sequence_length = train_set['features'].shape[2]
 
-    decoder_lstm_size = 5
-    decoder_embedding_size = 5
+    decoder_lstm_size = 15
+    decoder_embedding_size = 15
     decoder_vocabulary_length = len(idx2word_target)
     with tf.variable_scope("decoder_sequence_length"):
         decoder_sequence_length = train_set['targets'].shape[1]
@@ -225,6 +227,7 @@ def train(train_set, test_set, idx2word_history, word2idx_history, idx2word_targ
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, 'float'))
         tf.scalar_summary('accuracy', accuracy)
 
+    # with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
     with tf.Session() as sess:
         # Merge all the summaries and write them out to ./log
         merged = tf.merge_all_summaries()
@@ -233,22 +236,24 @@ def train(train_set, test_set, idx2word_history, word2idx_history, idx2word_targ
 
         # training
         tvars = tf.trainable_variables()
+        # tvars = [v for v in tvars if 'embedding_table' not in v.name] # all variables except embeddings
         learning_rate = tf.Variable(float(FLAGS.learning_rate), trainable=False)
 
+        # train_op = tf.train.GradientDescentOptimizer(
         train_op = AdamPlusOptimizer(
                 learning_rate=learning_rate,
                 beta1=FLAGS.beta1,
                 beta2=FLAGS.beta2,
                 epsilon=FLAGS.epsilon,
                 pow=FLAGS.pow,
-                use_locking=True,
+                use_locking=False,
                 name='trainer')
 
         learning_rate_decay_op = learning_rate.assign(learning_rate * FLAGS.decay)
         global_step = tf.Variable(0, trainable=False)
         gradients = tf.gradients(loss, tvars)
-        clipped_gradients, norm = tf.clip_by_global_norm(gradients, FLAGS.max_gradient_norm)
-        # clipped_gradients = [tf.clip_by_norm(g, FLAGS.max_gradient_norm) for g in gradients]
+
+        clipped_gradients, _ = tf.clip_by_global_norm(gradients, FLAGS.max_gradient_norm)
         train_op = train_op.apply_gradients(zip(clipped_gradients, tvars), global_step=global_step)
 
         tf.initialize_all_variables().run()
@@ -259,20 +264,24 @@ def train(train_set, test_set, idx2word_history, word2idx_history, idx2word_targ
         batch_size = FLAGS.batch_size
         print('Batch size:', batch_size)
         batch_indexes = [[i, i + batch_size] for i in range(0, train_set_size, batch_size)]
+        print('#Batches:', len(batch_indexes))
         # print('Batch indexes', batch_indexes)
 
         previous_accuracies = []
         previous_losses = []
         for epoch in range(FLAGS.max_epochs):
-            shuffle(batch_indexes)
-            for batch in batch_indexes:
+            print('Batch: ')
+            for b, batch in enumerate(batch_indexes):
+                print(b, end=' ', flush=True)
                 sess.run(
                         train_op,
                         feed_dict={
                             features: train_set['features'][batch[0]:batch[1]],
-                            targets: train_set['targets']  [batch[0]:batch[1]],
+                            targets: train_set['targets'][batch[0]:batch[1]],
                         }
                 )
+            print()
+            shuffle(batch_indexes)
 
             if epoch % max(min(int(FLAGS.max_epochs / 100), 100), 1) == 0:
                 summary, lss, acc = sess.run([merged, loss, accuracy],
@@ -284,6 +293,7 @@ def train(train_set, test_set, idx2word_history, word2idx_history, idx2word_targ
                 print(' - loss            = {lss:f}'.format(lss=lss))
                 print(' - learning rate   = {lr:f}'.format(lr=learning_rate.eval()))
                 print(' - use inputs prob = {uip:f}'.format(uip=use_inputs_prob.eval()))
+                print()
 
                 # decrease learning rate if no improvement was seen over last 3 times.
                 if len(previous_losses) > 2 and lss > max(previous_losses[-3:]):
@@ -315,7 +325,7 @@ def train(train_set, test_set, idx2word_history, word2idx_history, idx2word_targ
         print('Argmax predictions')
         # print(p_o_i_argmax)
         print()
-        for features in range(targets_given_features_argmax.shape[0]):
+        for features in range(0, targets_given_features_argmax.shape[0], max(int(targets_given_features_argmax.shape[0]/10), 1)):
             print('History', features)
 
             for j in range(test_set['features'].shape[1]):
@@ -345,12 +355,31 @@ def train(train_set, test_set, idx2word_history, word2idx_history, idx2word_targ
 
 
 def main(_):
-    print('-' * 120)
-    print('C2S Task: {t}'.format(t=FLAGS.task))
-    print('-' * 120)
-    train_set, test_set, idx2word_history, word2idx_history, idx2word_target, word2idx_target = dataset.dataset(mode=FLAGS.task)
+    graph = tf.Graph()
 
-    train(train_set, test_set, idx2word_history, word2idx_history, idx2word_target, word2idx_target)
+    with graph.as_default():
+        with graph.device(device_for_node_cpu):
+            print('-' * 120)
+            print('C2S task                  = {t}'.format(t=FLAGS.task))
+            print('    data                  = {data}'.format(data=FLAGS.data))
+            print('    max_epochs            = {max_epochs}'.format(max_epochs=FLAGS.max_epochs))
+            print('    batch_size            = {batch_size}'.format(batch_size=FLAGS.batch_size))
+            print('    learning_rate         = {learning_rate}'.format(learning_rate=FLAGS.learning_rate))
+            print('    decay                 = {decay}'.format(decay=FLAGS.decay))
+            print('    beta1                 = {beta1}'.format(beta1=FLAGS.beta1))
+            print('    beta2                 = {beta2}'.format(beta2=FLAGS.beta2))
+            print('    epsilon               = {epsilon}'.format(epsilon=FLAGS.epsilon))
+            print('    pow                   = {pow}'.format(pow=FLAGS.pow))
+            print('    regularization        = {regularization}'.format(regularization=FLAGS.regularization))
+            print('    max_gradient_norm     = {max_gradient_norm}'.format(max_gradient_norm=FLAGS.max_gradient_norm))
+            print('    use_inputs_prob_decay = {use_inputs_prob_decay}'.format(
+                    use_inputs_prob_decay=FLAGS.use_inputs_prob_decay))
+            print('-' * 120)
+            train_set, test_set, idx2word_history, word2idx_history, idx2word_target, word2idx_target = dataset.load(
+                    mode=FLAGS.task, text_data_fn=FLAGS.data
+            )
+
+            train(train_set, test_set, idx2word_history, word2idx_history, idx2word_target, word2idx_target)
 
 
 if __name__ == '__main__':

@@ -50,11 +50,11 @@ def embedding(input, length, size, name='embedding'):
                 initializer=tf.truncated_normal_initializer(stddev=3.0 / math.sqrt(float(length * size))),
         )
 
-        y = tf.nn.embedding_lookup(embedding_table, input)
+    y = tf.gather(embedding_table, input)
 
-        y.length = length
-        y.size = size
-        y.embedding_table = embedding_table
+    y.length = length
+    y.size = size
+    y.embedding_table = embedding_table
 
     return y
 
@@ -137,7 +137,7 @@ def rnn_decoder(cell, inputs, initial_state, embedding_size, embedding_length, s
                     ),
             )
             # 0 is index for _SOS_ (start of sentence symbol)
-            initial_embedding = tf.nn.embedding_lookup(embedding_table, tf.zeros(tf.pack([batch_size]), tf.int32))
+            initial_embedding = tf.gather(embedding_table, tf.zeros(tf.pack([batch_size]), tf.int32))
 
         states = [initial_state]
         outputs = []
@@ -151,9 +151,9 @@ def rnn_decoder(cell, inputs, initial_state, embedding_size, embedding_length, s
                 #   or use the provided input (note that you have to use the previous input (index si therefore -1)
                 input = initial_embedding
                 if j > 0:
-                    true_input = tf.nn.embedding_lookup(embedding_table, inputs[j-1])
+                    true_input = tf.gather(embedding_table, inputs[j - 1])
                     decoded_input = decoder_outputs_argmax_embedding[-1]
-                    choice = tf.floor(tf.random_uniform([1], use_inputs_prob, 1+use_inputs_prob, tf.float32))
+                    choice = tf.floor(tf.random_uniform([1], use_inputs_prob, 1 + use_inputs_prob, tf.float32))
                     input = choice * true_input + (1.0 - choice) * decoded_input
 
                 # print(tf.get_variable_scope().reuse, tf.get_variable_scope().name)
@@ -173,7 +173,8 @@ def rnn_decoder(cell, inputs, initial_state, embedding_size, embedding_length, s
                 # we do no compute the gradient trough argmax
                 output_argmax = tf.stop_gradient(tf.argmax(softmax, 1))
                 # we do no compute the gradient for embeddings when used with noisy argmax outputs
-                output_argmax_embedding = tf.stop_gradient(tf.nn.embedding_lookup(embedding_table, output_argmax))
+
+                output_argmax_embedding = tf.stop_gradient(tf.gather(embedding_table, output_argmax))
                 decoder_outputs_argmax_embedding.append(output_argmax_embedding)
 
                 outputs_softmax.append(tf.expand_dims(softmax, 1))
@@ -198,3 +199,27 @@ def dense_to_one_hot(labels, n_classes):
         )
 
         return one_hot_labels
+
+
+def device_for_node_cpu(n):
+    if n.type == "MatMul":
+        return "/cpu:0"
+    else:
+        return "/cpu:0"
+
+
+def device_for_node_gpu_matmul(n):
+    if n.type == "MatMul":
+        return "/gpu:0"
+    else:
+        return "/cpu:0"
+
+# GPU matmul
+# real    5m35.455s
+# user    10m27.452s
+# sys     2m50.512s
+
+# GPU none
+# real    4m46.137s
+# user    8m37.684s
+# sys     3m42.420s

@@ -137,6 +137,7 @@ class AdamPlusOptimizer(optimizer.Optimizer):
         m_scaled_g_values = grad.values * (1 - self._beta1_t)
         m_t = state_ops.assign(m, m * self._beta1_t,
                                use_locking=self._use_locking)
+
         m_t = state_ops.scatter_add(m_t, grad.indices, m_scaled_g_values,
                                     use_locking=self._use_locking)
         # v_t = beta2 * v + (1 - beta2) * (g_t * g_t)
