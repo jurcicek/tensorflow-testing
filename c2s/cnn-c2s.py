@@ -12,7 +12,7 @@ from random import shuffle
 import dataset
 
 from tf_ext.bricks import embedding, rnn, rnn_decoder, dense_to_one_hot, brnn, device_for_node_cpu, \
-    device_for_node_gpu_matmul
+    device_for_node_gpu_matmul, linear, conv2d, max_pool
 from tf_ext.optimizers import AdamPlusOptimizer
 
 flags = tf.app.flags
@@ -44,14 +44,13 @@ def train(train_set, test_set, idx2word_history, word2idx_history, idx2word_targ
     with tf.variable_scope("history_length"):
         history_length = train_set['features'].shape[1]
 
-    encoder_lstm_size = 16
-    encoder_embedding_size = 16
+    encoder_embedding_size = 32*4
     encoder_vocabulary_length = len(idx2word_history)
     with tf.variable_scope("encoder_sequence_length"):
         encoder_sequence_length = train_set['features'].shape[2]
 
-    decoder_lstm_size = 16
-    decoder_embedding_size = 16
+    decoder_lstm_size = 16*4
+    decoder_embedding_size = 16*4
     decoder_vocabulary_length = len(idx2word_target)
     with tf.variable_scope("decoder_sequence_length"):
         decoder_sequence_length = train_set['targets'].shape[1]
@@ -73,111 +72,65 @@ def train(train_set, test_set, idx2word_history, word2idx_history, idx2word_targ
         )
 
         with tf.name_scope("UtterancesEncoder"):
-            with tf.name_scope("RNNForwardUtteranceEncoderCell_1"):
-                cell_fw_1 = LSTMCell(
-                        num_units=encoder_lstm_size,
-                        input_size=encoder_embedding_size,
-                        use_peepholes=True
-                )
-                initial_state_fw_1 = cell_fw_1.zero_state(batch_size, tf.float32)
+            conv3 = encoder_embedding
+            # conv3 = conv2d(
+            #         input=conv3,
+            #         filter=[1, 3, encoder_embedding_size, encoder_embedding_size],
+            #         name='conv_utt_size_3_layer_1'
+            # )
+            # conv_s3 = conv2d(
+            #         input=conv_s3,
+            #         filter=[1, 3, encoder_embedding_size, encoder_embedding_size],
+            #         name='conv_utt_size_3_layer_2'
+            # )
+            # print(conv3)
+            # k = encoder_sequence_length
+            # mp_s3 = max_pool(conv_s3, ksize=[1, 1, k, 1], strides=[1, 1, k, 1])
+            # print(mp_s3)
 
-            with tf.name_scope("RNNBackwardUtteranceEncoderCell_1"):
-                cell_bw_1 = LSTMCell(
-                        num_units=encoder_lstm_size,
-                        input_size=encoder_embedding_size,
-                        use_peepholes=True
-                )
-                initial_state_bw_1 = cell_bw_1.zero_state(batch_size, tf.float32)
-
-            with tf.name_scope("RNNForwardUtteranceEncoderCell_2"):
-                cell_fw_2 = LSTMCell(
-                        num_units=encoder_lstm_size,
-                        input_size=cell_fw_1.output_size + cell_bw_1.output_size,
-                        use_peepholes=True
-                )
-                initial_state_fw_2 = cell_fw_2.zero_state(batch_size, tf.float32)
-
-            # the input data has this dimensions
-            # [
-            #   #batch,
-            #   #utterance in a history (a dialogue),
-            #   #word in an utterance (a sentence),
-            #   embedding dimension
-            # ]
-
-            # encode all utterances along the word axis
-            encoder_states_2d = []
-
-            for utterance in range(history_length):
-                encoder_outputs, _ = brnn(
-                        cell_fw=cell_fw_1,
-                        cell_bw=cell_bw_1,
-                        inputs=[encoder_embedding[:, utterance, word, :] for word in range(encoder_sequence_length)],
-                        initial_state_fw=initial_state_fw_1,
-                        initial_state_bw=initial_state_bw_1,
-                        name='RNNUtteranceBidirectionalLayer',
-                        reuse=True if utterance > 0 else None
-                )
-
-                _, encoder_states = rnn(
-                        cell=cell_fw_2,
-                        inputs=encoder_outputs,
-                        initial_state=initial_state_fw_2,
-                        name='RNNUtteranceForwardEncoder',
-                        reuse=True if utterance > 0 else None
-                )
-
-                # print(encoder_states[-1])
-                encoder_states = tf.concat(1, tf.expand_dims(encoder_states[-1], 1))
-                # print(encoder_states)
-                encoder_states_2d.append(encoder_states)
-
-            encoder_states_2d = tf.concat(1, encoder_states_2d)
-            # print('encoder_states_2d', encoder_states_2d)
+            # encoded_utterances = mp_s3
+            encoded_utterances = tf.reduce_max(conv3, [2], keep_dims=True)
 
         with tf.name_scope("HistoryEncoder"):
-            # encode all histories along the utterance axis
-            with tf.name_scope("RNNFrowardHistoryEncoderCell_1"):
-                cell_fw_1 = LSTMCell(
-                        num_units=encoder_lstm_size,
-                        input_size=cell_fw_2.state_size,
-                        use_peepholes=True
-                )
-                initial_state_fw_1 = cell_fw_1.zero_state(batch_size, tf.float32)
+            conv3 = encoded_utterances
+            # conv3 = conv2d(
+            #         input=conv3,
+            #         filter=[3, 1, encoder_embedding_size, encoder_embedding_size],
+            #         name='conv_hist_size_3_layer_1'
+            # )
+            # conv_s3 = conv2d(
+            #         input=conv_s3,
+            #         filter=[3, 1, encoder_embedding_size, encoder_embedding_size],
+            #         name='conv_hist_size_3_layer_2'
+            # )
+            # print(conv3)
+            # k = encoder_sequence_length
+            # mp_s3 = max_pool(conv_s3, ksize=[1, 1, k, 1], strides=[1, 1, k, 1])
+            # print(mp_s3)
 
-            with tf.name_scope("RNNBackwardHistoryEncoderCell_1"):
-                cell_bw_1 = LSTMCell(
-                        num_units=encoder_lstm_size,
-                        input_size=cell_fw_2.state_size,
-                        use_peepholes=True
-                )
-                initial_state_bw_1 = cell_fw_2.zero_state(batch_size, tf.float32)
+            encoded_history = tf.reduce_max(conv3, [1, 2])
 
-            with tf.name_scope("RNNFrowardHistoryEncoderCell_2"):
-                cell_fw_2 = LSTMCell(
-                        num_units=encoder_lstm_size,
-                        input_size=cell_fw_1.output_size + cell_bw_1.output_size,
-                        use_peepholes=True
-                )
-                initial_state_fw_2 = cell_fw_2.zero_state(batch_size, tf.float32)
-
-            encoder_outputs, _ = brnn(
-                    cell_fw=cell_fw_1,
-                    cell_bw=cell_bw_1,
-                    inputs=[encoder_states_2d[:, utterance, :] for utterance in range(history_length)],
-                    initial_state_fw=initial_state_fw_1,
-                    initial_state_bw=initial_state_bw_1,
-                    name='RNNHistoryBidirectionalLayer',
-                    reuse=None
-            )
-
-            _, encoder_states = rnn(
-                    cell=cell_fw_2,
-                    inputs=encoder_outputs,
-                    initial_state=initial_state_fw_2,
-                    name='RNNHistoryForwardEncoder',
-                    reuse=None
-            )
+            # projection = linear(
+            #         input=encoded_history,
+            #         input_size=encoder_embedding_size,
+            #         output_size=encoder_embedding_size,
+            #         name='linear_projection_1'
+            # )
+            # encoded_history = tf.nn.relu(projection)
+            # projection = linear(
+            #         input=encoded_history,
+            #         input_size=encoder_embedding_size,
+            #         output_size=encoder_embedding_size,
+            #         name='linear_projection_2'
+            # )
+            # encoded_history = tf.nn.relu(projection)
+            # projection = linear(
+            #         input=encoded_history,
+            #         input_size=encoder_embedding_size,
+            #         output_size=decoder_lstm_size * 2,
+            #         name='linear_projection_3'
+            # )
+            # encoded_history = tf.nn.relu(projection)
 
         with tf.name_scope("Decoder"):
             use_inputs_prob = tf.Variable(1.0, name='use_inputs_prob', trainable=False)
@@ -191,7 +144,7 @@ def train(train_set, test_set, idx2word_history, word2idx_history, idx2word_targ
                 )
 
             # decode all histories along the utterance axis
-            final_encoder_state = encoder_states[-1]
+            final_encoder_state = encoded_history
 
             decoder_states, decoder_outputs, decoder_outputs_softmax = rnn_decoder(
                     cell=cell,
@@ -277,7 +230,7 @@ def train(train_set, test_set, idx2word_history, word2idx_history, idx2word_targ
                         train_op,
                         feed_dict={
                             features: train_set['features'][batch[0]:batch[1]],
-                            targets: train_set['targets'][batch[0]:batch[1]],
+                            targets: train_set['targets']  [batch[0]:batch[1]],
                         }
                 )
             print()
@@ -325,7 +278,8 @@ def train(train_set, test_set, idx2word_history, word2idx_history, idx2word_targ
         print('Argmax predictions')
         # print(p_o_i_argmax)
         print()
-        for features in range(0, targets_given_features_argmax.shape[0], max(int(targets_given_features_argmax.shape[0]/10), 1)):
+        for features in range(0, targets_given_features_argmax.shape[0],
+                              max(int(targets_given_features_argmax.shape[0] / 10), 1)):
             print('History', features)
 
             for j in range(test_set['features'].shape[1]):
@@ -378,6 +332,10 @@ def main(_):
             train_set, test_set, idx2word_history, word2idx_history, idx2word_target, word2idx_target = dataset.load(
                     mode=FLAGS.task, text_data_fn=FLAGS.data
             )
+
+            print('Input vocabulary size:  ', len(idx2word_history))
+            print('Output vocabulary size: ', len(idx2word_target))
+            print('-' * 128)
 
             train(train_set, test_set, idx2word_history, word2idx_history, idx2word_target, word2idx_target)
 

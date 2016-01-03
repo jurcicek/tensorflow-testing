@@ -4,6 +4,10 @@ import math
 import tensorflow as tf
 
 
+def glorot(n1, n2):
+    return math.sqrt(6) / math.sqrt(float(n1 + n2))
+
+
 def linear(input, input_size, output_size, name='linear'):
     """Creates a linear transformation between two layers in a neural network.
 
@@ -16,7 +20,9 @@ def linear(input, input_size, output_size, name='linear'):
         W = tf.get_variable(
                 name='W',
                 shape=[input_size, output_size],
-                initializer=tf.truncated_normal_initializer(stddev=3.0 / math.sqrt(float(input_size * output_size))),
+                # initializer=tf.truncated_normal_initializer(stddev=3.0 / math.sqrt(float(input_size * output_size))),
+                initializer=tf.random_uniform_initializer(-glorot(input_size, output_size),
+                                                          glorot(input_size, output_size)),
         )
         b = tf.get_variable(
                 name='B',
@@ -43,19 +49,51 @@ def embedding(input, length, size, name='embedding'):
     :param size: int, size of vector representing the discrete inputs.
     :param name: str, name of the operation
     """
-    with tf.name_scope(name):
+    with tf.variable_scope(name):
         embedding_table = tf.get_variable(
                 name='embedding_table',
                 shape=[length, size],
-                initializer=tf.truncated_normal_initializer(stddev=3.0 / math.sqrt(float(length * size))),
+                # initializer=tf.truncated_normal_initializer(stddev=3.0 / math.sqrt(float(length * size))),
+                initializer=tf.random_uniform_initializer(-glorot(length, size), glorot(length, size)),
         )
 
-    y = tf.gather(embedding_table, input)
+        y = tf.gather(embedding_table, input)
 
-    y.length = length
-    y.size = size
-    y.embedding_table = embedding_table
+        y.length = length
+        y.size = size
+        y.embedding_table = embedding_table
 
+    return y
+
+
+def conv2d(input, filter, strides=[1, 1, 1, 1], name='conv2d'):
+    with tf.variable_scope(name):
+        W = tf.get_variable(
+                name='W',
+                shape=filter,
+                initializer=tf.truncated_normal_initializer()
+        )
+        b = tf.get_variable(
+                name='B',
+                shape=filter[-1],
+                initializer=tf.truncated_normal_initializer()
+        )
+
+        y = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(input, W, strides=strides, padding='SAME'), b))
+
+        y.filter = filter
+        y.strides = strides
+        y.W = W
+        y.b = b
+
+    return y
+
+
+def max_pool(input, ksize, strides, name='max_pool'):
+    with tf.name_scope(name):
+        y = tf.nn.max_pool(input, ksize, strides, padding='SAME')
+        y.ksize = ksize
+        y.strides = strides
     return y
 
 
