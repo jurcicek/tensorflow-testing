@@ -44,14 +44,14 @@ def train(train_set, test_set, idx2word_history, word2idx_history, idx2word_targ
     with tf.variable_scope("history_length"):
         history_length = train_set['features'].shape[1]
 
-    encoder_lstm_size = 16
-    encoder_embedding_size = 16
+    encoder_lstm_size = 16*4
+    encoder_embedding_size = 16*8
     encoder_vocabulary_length = len(idx2word_history)
     with tf.variable_scope("encoder_sequence_length"):
         encoder_sequence_length = train_set['features'].shape[2]
 
-    decoder_lstm_size = 16
-    decoder_embedding_size = 16
+    decoder_lstm_size = 16*4
+    decoder_embedding_size = 16*4
     decoder_vocabulary_length = len(idx2word_target)
     with tf.variable_scope("decoder_sequence_length"):
         decoder_sequence_length = train_set['targets'].shape[1]
@@ -378,6 +378,10 @@ def main(_):
             train_set, test_set, idx2word_history, word2idx_history, idx2word_target, word2idx_target = dataset.load(
                     mode=FLAGS.task, text_data_fn=FLAGS.data
             )
+
+            print('Input vocabulary size:  ', len(idx2word_history))
+            print('Output vocabulary size: ', len(idx2word_target))
+            print('-' * 120)
 
             train(train_set, test_set, idx2word_history, word2idx_history, idx2word_target, word2idx_target)
 

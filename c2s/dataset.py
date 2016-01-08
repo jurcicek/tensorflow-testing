@@ -37,7 +37,7 @@ def gen_examples(text_data, mode='tracker'):
                 history.append(turn[0])
                 history.append(turn[1])
                 target = turn[2]  # the dialogue state
-            elif mode == 'e2e':
+            else: # mode == 'e2e'
                 if prev_turn:
                     history.append(prev_turn[0])
                     history.append(prev_turn[1])
@@ -159,6 +159,7 @@ def load(mode, text_data_fn):
     text_data = load_json_data(text_data_fn)
 
     examples = gen_examples(text_data, mode)
+    # print(examples)
 
     norm_examples = normalize(examples)
     norm_examples = sort_by_conversation_length(norm_examples)

@@ -335,7 +335,7 @@ def main(_):
 
             print('Input vocabulary size:  ', len(idx2word_history))
             print('Output vocabulary size: ', len(idx2word_target))
-            print('-' * 128)
+            print('-' * 120)
 
             train(train_set, test_set, idx2word_history, word2idx_history, idx2word_target, word2idx_target)
 
