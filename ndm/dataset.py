@@ -155,19 +155,23 @@ def index_and_pad_examples(examples, word2idx_history, max_length_history, max_l
     return index_pad_examples
 
 
-def load(mode, text_data_fn):
-    text_data = load_json_data(text_data_fn)
-    examples = gen_examples(text_data, mode)
-    # print(examples)
+def load(mode, train_data_fn, train_data_fraction, test_data_fn, ontology_fn):
+    train_data = load_json_data(train_data_fn)
+    train_data = train_data[:int(len(train_data) * train_data_fraction)]
+    test_data = load_json_data(test_data_fn)
+    ontology = load_json_data(ontology_fn)
 
-    norm_examples = normalize(examples)
-    norm_examples = sort_by_conversation_length(norm_examples)
+    train_examples = gen_examples(train_data, mode)
+    # print(train_examples)
+
+    norm_train_examples = normalize(train_examples)
+    norm_train_examples = sort_by_conversation_length(norm_train_examples)
     # remove 10 % of the longest dialogues this will half the length of the conversations
-    norm_examples = norm_examples[:-int(len(norm_examples)/10)]
+    norm_train_examples = norm_train_examples[:-int(len(norm_train_examples)/10)]
 
-    # print(norm_examples)
+    # print(norm_train_examples)
 
-    idx2word_history, idx2word_target = get_idx2word(norm_examples)
+    idx2word_history, idx2word_target = get_idx2word(norm_train_examples)
     word2idx_history = get_word2idx(idx2word_history)
     word2idx_target = get_word2idx(idx2word_target)
 
@@ -180,7 +184,7 @@ def load(mode, text_data_fn):
     max_length_history = 0
     max_length_utterance = 0
     max_length_target = 0
-    for history, target in norm_examples:
+    for history, target in norm_train_examples:
         for utterance in history:
             max_length_utterance = max(max_length_utterance, len(utterance))
 
@@ -189,7 +193,7 @@ def load(mode, text_data_fn):
 
     # pad the data with _SOS_ and _EOS_ word symbols
     index_examples = index_and_pad_examples(
-            norm_examples, word2idx_history, max_length_history, max_length_utterance,
+            norm_train_examples, word2idx_history, max_length_history, max_length_utterance,
             word2idx_target, max_length_target
     )
 

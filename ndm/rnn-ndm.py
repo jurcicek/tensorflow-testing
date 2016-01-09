@@ -307,7 +307,7 @@ def train(train_set, test_set, idx2word_history, word2idx_history, idx2word_targ
 
             sess.run(use_inputs_prob_decay_op)
 
-        save_path = saver.save(sess, ".rnn-model.ckpt")
+        save_path = saver.save(sess, "model.ckpt")
         print()
         print("Model saved in file: %s" % save_path)
         print()
@@ -360,7 +360,8 @@ def main(_):
     with graph.as_default():
         with graph.device(device_for_node_cpu):
             print('-' * 120)
-            print('C2S task                  = {t}'.format(t=FLAGS.task))
+            print('RNN-nDM')
+            print('    task                  = {t}'.format(t=FLAGS.task))
             print('    data                  = {data}'.format(data=FLAGS.data))
             print('    max_epochs            = {max_epochs}'.format(max_epochs=FLAGS.max_epochs))
             print('    batch_size            = {batch_size}'.format(batch_size=FLAGS.batch_size))
