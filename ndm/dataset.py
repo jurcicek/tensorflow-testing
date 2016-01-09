@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 import json
 from copy import deepcopy
+from random import shuffle
 
 import numpy as np
+import sys
 
+import ontology
 
 def load_json_data(file_name):
     """Load a json file - file_name.
@@ -37,7 +40,7 @@ def gen_examples(text_data, mode='tracker'):
                 history.append(turn[0])
                 history.append(turn[1])
                 target = turn[2]  # the dialogue state
-            else: # mode == 'e2e'
+            else:  # mode == 'e2e'
                 if prev_turn:
                     history.append(prev_turn[0])
                     history.append(prev_turn[1])
@@ -122,7 +125,7 @@ def index_and_pad_utterance(utterance, word2idx, max_length, add_sos=True):
     for w in range(max_length - len(s)):
         s.append(word2idx['_EOS_'])
 
-    return s
+    return s[:max_length]
 
 
 def index_and_pad_history(history, word2idx, max_length_history, max_length_utterance):
@@ -140,7 +143,7 @@ def index_and_pad_history(history, word2idx, max_length_history, max_length_utte
 
         index_pad_history.append(ip_utterance)
 
-    return index_pad_history
+    return index_pad_history[len(index_pad_history) - max_length_history:]
 
 
 def index_and_pad_examples(examples, word2idx_history, max_length_history, max_length_utterance,
@@ -155,77 +158,122 @@ def index_and_pad_examples(examples, word2idx_history, max_length_history, max_l
     return index_pad_examples
 
 
-def load(mode, train_data_fn, train_data_fraction, test_data_fn, ontology_fn):
-    train_data = load_json_data(train_data_fn)
-    train_data = train_data[:int(len(train_data) * train_data_fraction)]
-    test_data = load_json_data(test_data_fn)
-    ontology = load_json_data(ontology_fn)
+class DSTC2:
+    def __init__(self, mode, train_data_fn, train_data_fraction, test_data_fn, ontology_fn, batch_size):
+        self.ontology = ontology.Ontology(ontology_fn)
 
-    train_examples = gen_examples(train_data, mode)
-    # print(train_examples)
+        train_data = load_json_data(train_data_fn)
+        train_data = train_data[:int(len(train_data) * train_data_fraction)]
+        test_data = load_json_data(test_data_fn)
 
-    norm_train_examples = normalize(train_examples)
-    norm_train_examples = sort_by_conversation_length(norm_train_examples)
-    # remove 10 % of the longest dialogues this will half the length of the conversations
-    norm_train_examples = norm_train_examples[:-int(len(norm_train_examples)/10)]
+        train_examples = gen_examples(train_data, mode)
+        test_examples = gen_examples(test_data, mode)
+        # print(train_examples)
 
-    # print(norm_train_examples)
+        norm_train_examples = normalize(train_examples)
+        norm_train_examples = sort_by_conversation_length(norm_train_examples)
+        # remove 10 % of the longest dialogues this will half the length of the conversations
+        norm_train_examples = norm_train_examples[:-int(len(norm_train_examples) / 10)]
+        # print(norm_train_examples)
 
-    idx2word_history, idx2word_target = get_idx2word(norm_train_examples)
-    word2idx_history = get_word2idx(idx2word_history)
-    word2idx_target = get_word2idx(idx2word_target)
+        norm_test_examples = normalize(test_examples)
 
-    # print(idx2word_history)
-    # print(word2idx_history)
-    # print()
-    # print(idx2word_target)
-    # print(word2idx_target)
+        abstract_train_examples = self.ontology.abstract(norm_train_examples)
+        abstract_test_examples = self.ontology.abstract(norm_test_examples)
 
-    max_length_history = 0
-    max_length_utterance = 0
-    max_length_target = 0
-    for history, target in norm_train_examples:
-        for utterance in history:
-            max_length_utterance = max(max_length_utterance, len(utterance))
+        idx2word_history, idx2word_target = get_idx2word(norm_train_examples)
+        word2idx_history = get_word2idx(idx2word_history)
+        word2idx_target = get_word2idx(idx2word_target)
 
-        max_length_history = max(max_length_history, len(history))
-        max_length_target = max(max_length_target, len(target))
+        # print(idx2word_history)
+        # print(word2idx_history)
+        # print()
+        # print(idx2word_target)
+        # print(word2idx_target)
 
-    # pad the data with _SOS_ and _EOS_ word symbols
-    index_examples = index_and_pad_examples(
-            norm_train_examples, word2idx_history, max_length_history, max_length_utterance,
-            word2idx_target, max_length_target
-    )
+        max_length_history = 0
+        max_length_utterance = 0
+        max_length_target = 0
+        for history, target in norm_train_examples:
+            for utterance in history:
+                max_length_utterance = max(max_length_utterance, len(utterance))
 
-    # print(index_examples)
+            max_length_history = max(max_length_history, len(history))
+            max_length_target = max(max_length_target, len(target))
 
-    # for history, target in index_examples:
-    #     for utterance in history:
-    #         print('U', len(utterance), utterance)
-    #     print('T', len(target), target)
+        # pad the data with _SOS_ and _EOS_ word symbols
+        train_index_examples = index_and_pad_examples(
+                norm_train_examples, word2idx_history, max_length_history, max_length_utterance,
+                word2idx_target, max_length_target
+        )
+        # print(train_index_examples)
 
-    train_features = [history for history, _ in index_examples]
-    train_targets = [target for _, target in index_examples]
+        # for history, target in train_index_examples:
+        #     for utterance in history:
+        #         print('U', len(utterance), utterance)
+        #     print('T', len(target), target)
 
-    # print(train_features)
-    # print(train_targets)
+        train_features = [history for history, _ in train_index_examples]
+        train_targets = [target for _, target in train_index_examples]
 
-    train_features = np.asarray(train_features, dtype=np.int32)
-    train_targets = np.asarray(train_targets, dtype=np.int32)
+        train_features = np.asarray(train_features, dtype=np.int32)
+        train_targets = np.asarray(train_targets, dtype=np.int32)
 
-    # print(train_features)
-    # print(train_targets)
+        # print(train_features)
+        # print(train_targets)
 
-    test_features = train_features
-    test_targets = train_targets
+        test_index_examples = index_and_pad_examples(
+                norm_test_examples, word2idx_history, max_length_history, max_length_utterance,
+                word2idx_target, max_length_target
+        )
+        # print(test_index_examples)
 
-    train_set = {
-        'features': train_features,
-        'targets':  train_targets
-    }
-    test_set = {
-        'features': test_features,
-        'targets':  test_targets
-    }
+        for history, target in test_index_examples:
+            for utterance in history:
+                print('U', len(utterance), utterance)
+            print('T', len(target), target)
 
-    return train_set, test_set, idx2word_history, word2idx_history, idx2word_target, word2idx_target
+        test_features = [history for history, _ in test_index_examples]
+        test_targets = [target for _, target in test_index_examples]
+
+        test_features = np.asarray(test_features, dtype=np.int32)
+        test_targets = np.asarray(test_targets, dtype=np.int32)
+
+        # print(test_features)
+        # print(test_targets)
+
+        train_set = {
+            'features': train_features,
+            'targets':  train_targets
+        }
+        dev_set = {
+            'features': train_features[int(len(train_set) * 0.9):],
+            'targets': train_targets  [int(len(train_set) * 0.9):]
+        }
+        test_set = {
+            'features': test_features,
+            'targets':  test_targets
+        }
+
+        self.train_set = train_set
+        self.train_set_size = len(train_set['features'])
+        self.dev_set = dev_set
+        self.dev_set_size = len(dev_set['features'])
+        self.test_set = test_set
+        self.test_set_size = len(test_set['features'])
+
+        self.idx2word_history = idx2word_history
+        self.word2idx_history = word2idx_history
+        self.idx2word_target = idx2word_target
+        self.word2idx_target = word2idx_target
+
+        self.batch_size = batch_size
+        self.train_batch_indexes = [[i, i + batch_size] for i in range(0, self.train_set_size, batch_size)]
+
+    def iter_train_batches(self):
+        for batch in self.train_batch_indexes:
+            yield {
+                'features': self.train_set['features'][batch[0]:batch[1]],
+                'targets': self.train_set['targets']  [batch[0]:batch[1]],
+            }
+        shuffle(self.train_batch_indexes)

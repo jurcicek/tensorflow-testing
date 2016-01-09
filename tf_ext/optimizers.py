@@ -213,7 +213,7 @@ class AdamPlusCovOptimizer(optimizer.Optimizer):
           name: Optional name for the operations created when applying gradients.
             Defaults to "Adam".
         """
-        super(AdamPlusOptimizer, self).__init__(use_locking, name)
+        super(AdamPlusCovOptimizer, self).__init__(use_locking, name)
         self._lr = learning_rate
         self._beta1 = beta1
         self._beta2 = beta2
