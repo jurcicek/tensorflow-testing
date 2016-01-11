@@ -126,6 +126,8 @@ def index_and_pad_utterance(utterance, word2idx, max_length, add_sos=True):
         s = []
 
     for w in utterance:
+        if w not in word2idx:
+            print('OOV: {oov}'.format(oov=w))
         s.append(word2idx.get(w, word2idx['_OOV_']))
 
     for w in range(max_length - len(s)):
@@ -191,11 +193,16 @@ class DSTC2:
         abstract_train_examples, arguments_train_examples = self.ontology.abstract(norm_train_examples, mode)
         abstract_test_examples, arguments_test_examples = self.ontology.abstract(norm_test_examples, mode)
 
-        # for history, target in abstract_train_examples:
-        #     print('-'*120)
-        #     for utterance in history:
-        #         print('U', ' '.join(utterance))
-        #     print('T', ' '.join(target))
+        for history, target in abstract_train_examples:
+            print('-'*120)
+            for utterance in history:
+                print('U', ' '.join(utterance))
+                print('T', ' '.join(target))
+        for history, target in abstract_test_examples:
+            print('-'*120)
+            for utterance in history:
+                print('U', ' '.join(utterance))
+                print('T', ' '.join(target))
         # sys.exit(0)
 
         idx2word_history, idx2word_target = get_idx2word(abstract_train_examples)
