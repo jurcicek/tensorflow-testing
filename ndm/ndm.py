@@ -25,7 +25,7 @@ flags.DEFINE_string('test_data', './data.dstc2.test.json', 'The test data the mo
 flags.DEFINE_float('data_fraction', 0.1, 'The fraction of data to usd to train model.')
 flags.DEFINE_string('ontology', './data.dstc2.ontology.json', 'The ontology defining slots and their values.')
 flags.DEFINE_string('database', './data.dstc2.db.json', 'The backend database defining entries that can be queried.')
-flags.DEFINE_integer('max_epochs', 1000, 'Number of epochs to run trainer.')
+flags.DEFINE_integer('max_epochs', 100, 'Number of epochs to run trainer.')
 flags.DEFINE_integer('batch_size', 32, 'Number of training examples in a batch.')
 flags.DEFINE_float('learning_rate', 0.01, 'Initial learning rate.')
 flags.DEFINE_float('decay', 0.9, 'AdamPlusOptimizer learning rate decay.')

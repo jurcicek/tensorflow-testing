@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+from collections import defaultdict
 from copy import deepcopy
 from random import shuffle
 
@@ -96,18 +97,23 @@ def get_word2idx(idx2word):
 
 
 def get_idx2word(examples):
-    words_history = set()
-    words_target = set()
+    words_history = defaultdict(int)
+    words_target = defaultdict(int)
 
     for history, target in examples:
         for utterance in history:
-            words_history.update(utterance)
-        words_target.update(target)
+            for word in utterance:
+                words_history[word] += 1
+
+        for word in target:
+            words_target[word] += 1
 
     idx2word_history = ['_SOS_', '_EOS_', '_OOV_']
+    words_history = [word for word in words_history if words_history[word] >= 3]
     idx2word_history.extend(sorted(words_history))
 
     idx2word_target = ['_SOS_', '_EOS_', '_OOV_']
+    words_target = [word for word in words_history if words_target[word] >= 3]
     idx2word_target.extend(sorted(words_target))
 
     return idx2word_history, idx2word_target
@@ -182,15 +188,14 @@ class DSTC2:
         # remove 10 % of the longest dialogues
         norm_test_examples = norm_test_examples[:-int(len(norm_test_examples) / 10)]
 
-        abstract_train_examples, arguments_train_examples = self.ontology.abstract(norm_train_examples)
-        abstract_test_examples, arguments_test_examples = self.ontology.abstract(norm_test_examples)
+        abstract_train_examples, arguments_train_examples = self.ontology.abstract(norm_train_examples, mode)
+        abstract_test_examples, arguments_test_examples = self.ontology.abstract(norm_test_examples, mode)
 
         # for history, target in abstract_train_examples:
         #     print('-'*120)
         #     for utterance in history:
         #         print('U', ' '.join(utterance))
         #     print('T', ' '.join(target))
-
         # sys.exit(0)
 
         idx2word_history, idx2word_target = get_idx2word(abstract_train_examples)

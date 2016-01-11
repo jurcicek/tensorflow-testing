@@ -14,7 +14,7 @@
         "food": "italian",
         "phone": "01223 323737",
         "pricerange": "moderate",
-        "postcode": "c.b 5",
+        "postcode": "c b 5 8 w r",
         "name": "pizza hut fen ditton"
     },
     {
@@ -23,8 +23,8 @@
         "food": "european",
         "phone": "01223 309147",
         "pricerange": "expensive",
-        "postcode": "c.b 2",
-        "addr": "st. michael's church trinity street city centre"
+        "postcode": "c b 2 1 s u",
+        "addr": "st michael's church trinity street city centre"
     },
     {
         "phone": "01223 506055",
@@ -32,7 +32,7 @@
         "addr": "68 histon road chesterton",
         "area": "north",
         "food": "indian",
-        "postcode": "c.b 4",
+        "postcode": "c b 4 3 l e",
         "name": "tandoori palace"
     },
     {
@@ -42,7 +42,7 @@
         "area": "centre",
         "food": "chinese",
         "phone": "not available",
-        "postcode": "c.b 1"
+        "postcode": "c b 1"
     },
     {
         "phone": "not available",
@@ -77,7 +77,7 @@
         "food": "italian",
         "phone": "01223 412430",
         "pricerange": "expensive",
-        "postcode": "c.b 1",
+        "postcode": "c b 1",
         "name": "frankie and bennys"
     },
     {
@@ -95,7 +95,7 @@
         "name": "j restaurant",
         "area": "centre",
         "food": "asian oriental",
-        "postcode": "c.b 2",
+        "postcode": "c b 2",
         "addr": "86 regent street city centre"
     },
     {
@@ -104,7 +104,7 @@
         "food": "chinese",
         "phone": "01223 244277",
         "pricerange": "cheap",
-        "postcode": "c.b 1",
+        "postcode": "c b 1 7 d y",
         "addr": "cambridge leisure park clifton way cherry hinton"
     },
     {
@@ -114,7 +114,7 @@
         "area": "centre",
         "food": "turkish",
         "phone": "not available",
-        "postcode": "c.b 1"
+        "postcode": "c b 1 3 n f"
     },
     {
         "phone": "01223 355711",
@@ -123,7 +123,7 @@
         "name": "clowns cafe",
         "area": "centre",
         "food": "italian",
-        "postcode": "c.b 1"
+        "postcode": "c b 1"
     },
     {
         "addr": "59 hills road city centre",
@@ -131,7 +131,7 @@
         "food": "lebanese",
         "phone": "01462 432565",
         "pricerange": "moderate",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 1 n t",
         "name": "ali baba"
     },
     {
@@ -140,7 +140,7 @@
         "food": "modern european",
         "phone": "01223 413000",
         "pricerange": "moderate",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 8 p b",
         "name": "restaurant alimentum"
     },
     {
@@ -158,7 +158,7 @@
         "food": "french",
         "phone": "01223 311053",
         "pricerange": "expensive",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 1 u f",
         "addr": "bridge street city centre"
     },
     {
@@ -167,7 +167,7 @@
         "food": "vietnamese",
         "phone": "01223 362456",
         "pricerange": "cheap",
-        "postcode": "c.b 3",
+        "postcode": "c b 3 0 a f",
         "addr": "17 magdalene street city centre"
     },
     {
@@ -176,7 +176,7 @@
         "food": "indian",
         "phone": "01223 360966",
         "pricerange": "moderate",
-        "postcode": "c.b 4",
+        "postcode": "c b 4 1 u y",
         "addr": "7 milton road chesterton"
     },
     {
@@ -185,7 +185,7 @@
         "food": "british",
         "phone": "01223 302010",
         "pricerange": "moderate",
-        "postcode": "c.b 1",
+        "postcode": "c b 1 1 b g",
         "addr": "183 east road city centre"
     },
     {
@@ -212,7 +212,7 @@
         "name": "backstreet bistro",
         "area": "centre",
         "food": "gastropub",
-        "postcode": "c.b 1",
+        "postcode": "c b 1 2 q a",
         "addr": "2 sturton street city centre"
     },
     {
@@ -221,7 +221,7 @@
         "food": "chinese",
         "phone": "01223 248882",
         "pricerange": "expensive",
-        "postcode": "c.b 5",
+        "postcode": "c b 5 8 p a",
         "addr": "529 newmarket road fen ditton"
     },
     {
@@ -230,7 +230,7 @@
         "name": "loch fyne",
         "area": "centre",
         "food": "seafood",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 1 q y",
         "addr": "the little rose 37 trumpington street"
     },
     {
@@ -248,7 +248,7 @@
         "food": "chinese",
         "phone": "01223 354755",
         "pricerange": "expensive",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 8 n x",
         "addr": "10 homerton street city centre"
     },
     {
@@ -257,7 +257,7 @@
         "name": "sala thong",
         "area": "west",
         "food": "thai",
-        "postcode": "c.b 3",
+        "postcode": "c b 3 9 e y",
         "addr": "35 newnham road newnham"
     },
     {
@@ -266,7 +266,7 @@
         "food": "chinese",
         "phone": "01223 568988",
         "pricerange": "expensive",
-        "postcode": "c.b 4",
+        "postcode": "c b 4",
         "addr": "milton road chesterton"
     },
     {
@@ -284,7 +284,7 @@
         "food": "indian",
         "phone": "01223 249955",
         "pricerange": "expensive",
-        "postcode": "c.b 1",
+        "postcode": "c b 1 9 h x",
         "addr": "43 high street cherry hinton cherry hinton"
     },
     {
@@ -293,7 +293,7 @@
         "food": "european",
         "phone": "01223 368786",
         "pricerange": "expensive",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 3 r h",
         "addr": "free school lane city centre"
     },
     {
@@ -302,7 +302,7 @@
         "food": "indian",
         "phone": "01223 412299",
         "pricerange": "expensive",
-        "postcode": "c.b 1",
+        "postcode": "c b 1 7 a a",
         "addr": "64 cherry hinton road cherry hinton"
     },
     {
@@ -311,7 +311,7 @@
         "food": "chinese",
         "phone": "01223 244149",
         "pricerange": "expensive",
-        "postcode": "c.b 1",
+        "postcode": "c b 1 7 a g",
         "addr": "82 cherry hinton road cherry hinton"
     },
     {
@@ -320,7 +320,7 @@
         "food": "italian",
         "phone": "01223 351707",
         "pricerange": "cheap",
-        "postcode": "c.b 4",
+        "postcode": "c b 4 1 j y",
         "name": "da vinci pizzeria"
     },
     {
@@ -329,7 +329,7 @@
         "food": "chinese",
         "phone": "01223 366552",
         "pricerange": "expensive",
-        "postcode": "c.b 4",
+        "postcode": "c b 4 1 e p",
         "addr": "66 chesterton road chesterton"
     },
     {
@@ -338,7 +338,7 @@
         "name": "jinling noodle bar",
         "area": "centre",
         "food": "chinese",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 3 p p",
         "addr": "11 peas hill city centre"
     },
     {
@@ -347,7 +347,7 @@
         "food": "turkish",
         "phone": "01223 362372",
         "pricerange": "moderate",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 1 u j",
         "name": "anatolia"
     },
     {
@@ -356,14 +356,14 @@
         "food": "spanish",
         "phone": "01223 464630",
         "pricerange": "moderate",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 1 u f",
         "addr": "14 -16 bridge street"
     },
     {
         "phone": "01223 324033",
         "addr": "not available",
         "pricerange": "moderate",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 1 d b",
         "area": "centre",
         "food": "italian",
         "name": "pizza express"
@@ -374,7 +374,7 @@
         "name": "charlie chan",
         "area": "centre",
         "food": "chinese",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 1 d b",
         "addr": "regent street city centre"
     },
     {
@@ -392,7 +392,7 @@
         "food": "north american",
         "phone": "01223 312598",
         "pricerange": "expensive",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 1 a b",
         "addr": "regent street city centre"
     },
     {
@@ -401,7 +401,7 @@
         "food": "thai",
         "phone": "01223 354382",
         "pricerange": "expensive",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 3 j x",
         "addr": "24 green street city centre"
     },
     {
@@ -410,7 +410,7 @@
         "food": "indian",
         "phone": "01223 566388",
         "pricerange": "moderate",
-        "postcode": "c.b 5",
+        "postcode": "c b 5 8 j j",
         "addr": "451 newmarket road fen ditton"
     },
     {
@@ -419,7 +419,7 @@
         "food": "indian",
         "phone": "01223 577786",
         "pricerange": "expensive",
-        "postcode": "c.b 5",
+        "postcode": "c b 5",
         "name": "pipasha restaurant"
     },
     {
@@ -428,7 +428,7 @@
         "food": "asian oriental",
         "phone": "01223 363471",
         "pricerange": "cheap",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 1 r q",
         "addr": "40210 millers yard city centre"
     },
     {
@@ -437,7 +437,7 @@
         "name": "wagamama",
         "area": "centre",
         "food": "japanese",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 3 a r",
         "addr": "36 saint andrews street"
     },
     {
@@ -455,7 +455,7 @@
         "name": "ask",
         "area": "centre",
         "food": "italian",
-        "postcode": "c.b 2",
+        "postcode": "c b 2",
         "addr": "12 bridge street city centre"
     },
     {
@@ -464,7 +464,7 @@
         "food": "indian",
         "phone": "01223 358399",
         "pricerange": "expensive",
-        "postcode": "c.b 3",
+        "postcode": "c b 3",
         "addr": "41518 castle street city centre"
     },
     {
@@ -482,7 +482,7 @@
         "food": "turkish",
         "phone": "01223 500005",
         "pricerange": "moderate",
-        "postcode": "c.b 1",
+        "postcode": "c b 1 1 l n",
         "addr": "king street city centre"
     },
     {
@@ -491,7 +491,7 @@
         "food": "asian oriental",
         "phone": "01223 518111",
         "pricerange": "moderate",
-        "postcode": "c.b 1",
+        "postcode": "c b 1 1 l h",
         "addr": "40428 king street city centre"
     },
     {
@@ -518,7 +518,7 @@
         "name": "the varsity restaurant",
         "area": "centre",
         "food": "international",
-        "postcode": "c.b 2",
+        "postcode": "c b 2",
         "addr": "35 saint andrews street city centre"
     },
     {
@@ -527,7 +527,7 @@
         "food": "european",
         "phone": "01223 355166",
         "pricerange": "expensive",
-        "postcode": "c.b 3",
+        "postcode": "c b 3 0 d q",
         "addr": "cambridge lodge hotel 139 huntingdon road city centre"
     },
     {
@@ -536,7 +536,7 @@
         "food": "mediterranean",
         "phone": "01223 362525",
         "pricerange": "expensive",
-        "postcode": "c.b 5",
+        "postcode": "c b 5 8 a q",
         "addr": "thompsons lane fen ditton"
     },
     {
@@ -545,7 +545,7 @@
         "food": "italian",
         "phone": "01223 315232",
         "pricerange": "cheap",
-        "postcode": "c.b 3",
+        "postcode": "c b 3 a f",
         "addr": "15 magdalene street city centre"
     },
     {
@@ -554,7 +554,7 @@
         "food": "international",
         "phone": "01223 812660",
         "pricerange": "cheap",
-        "postcode": "c.b 25",
+        "postcode": "c b 25 1 d p",
         "addr": "finders corner newmarket road"
     },
     {
@@ -572,7 +572,7 @@
         "food": "british",
         "phone": "01223 241387",
         "pricerange": "expensive",
-        "postcode": "c.b 5",
+        "postcode": "c b 5",
         "name": "grafton hotel restaurant"
     },
     {
@@ -581,7 +581,7 @@
         "food": "mediterranean",
         "phone": "01223 356354",
         "pricerange": "cheap",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 3 l l",
         "addr": "2 rose crescent city centre"
     },
     {
@@ -599,7 +599,7 @@
         "name": "bedouin",
         "area": "centre",
         "food": "african",
-        "postcode": "c.b 1",
+        "postcode": "c b 1 2 b d",
         "addr": "100 mill road city centre"
     },
     {
@@ -626,7 +626,7 @@
         "food": "mexican",
         "phone": "01223 400170",
         "pricerange": "expensive",
-        "postcode": "c.b 1",
+        "postcode": "c b 1",
         "addr": "2g cambridge leisure park cherry hinton road cherry hinton"
     },
     {
@@ -635,7 +635,7 @@
         "food": "asian oriental",
         "phone": "01223 311911",
         "pricerange": "expensive",
-        "postcode": "c.b 1",
+        "postcode": "c b 1 2 a s",
         "name": "kymmoy"
     },
     {
@@ -644,7 +644,7 @@
         "name": "the river bar steakhouse and grill",
         "area": "centre",
         "food": "modern european",
-        "postcode": "c.b 5",
+        "postcode": "c b 5",
         "addr": "quayside off bridge street"
     },
     {
@@ -653,7 +653,7 @@
         "name": "bloomsbury restaurant",
         "area": "centre",
         "food": "international",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 3 d t",
         "addr": "crowne plaza hotel 20 downing street"
     },
     {
@@ -662,7 +662,7 @@
         "food": "asian oriental",
         "phone": "01223 356555",
         "pricerange": "expensive",
-        "postcode": "c.b 4",
+        "postcode": "c b 4 1 n l",
         "addr": "169 high street chesterton chesterton"
     },
     {
@@ -671,7 +671,7 @@
         "food": "italian",
         "phone": "01799 521260",
         "pricerange": "moderate",
-        "postcode": "c.b 3",
+        "postcode": "c b 3 0 a d",
         "addr": "21 - 24 northampton road"
     },
     {
@@ -689,7 +689,7 @@
         "food": "indian",
         "phone": "01733 553355",
         "pricerange": "cheap",
-        "postcode": "c.b 4",
+        "postcode": "c b 4 1 e h",
         "addr": "victoria avenue chesterton"
     },
     {
@@ -698,7 +698,7 @@
         "food": "british",
         "phone": "01223 353110",
         "pricerange": "moderate",
-        "postcode": "c.b 3",
+        "postcode": "c b 3",
         "addr": "21 - 24 northampton street"
     },
     {
@@ -707,7 +707,7 @@
         "food": "indian",
         "phone": "01223 244955",
         "pricerange": "moderate",
-        "postcode": "c.b 5",
+        "postcode": "c b 5 8 r g",
         "name": "rajmahal"
     },
     {
@@ -716,7 +716,7 @@
         "food": "mediterranean",
         "phone": "01223 307581",
         "pricerange": "expensive",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 1 d p",
         "addr": "84 regent street city centre"
     },
     {
@@ -725,7 +725,7 @@
         "food": "modern european",
         "phone": "01223 505015",
         "pricerange": "expensive",
-        "postcode": "c.b 1",
+        "postcode": "c b 1",
         "addr": "40270 king street city centre"
     },
     {
@@ -752,7 +752,7 @@
         "food": "korean",
         "phone": "01223 308681",
         "pricerange": "expensive",
-        "postcode": "c.b 2",
+        "postcode": "c b 2",
         "addr": "108 regent street city centre"
     },
     {
@@ -761,7 +761,7 @@
         "food": "italian",
         "phone": "01223 323737",
         "pricerange": "moderate",
-        "postcode": "c.b 1",
+        "postcode": "c b 1",
         "addr": "g4 cambridge leisure park clifton way cherry hinton"
     },
     {
@@ -770,7 +770,7 @@
         "food": "european",
         "phone": "01223 227330",
         "pricerange": "moderate",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 1 q a",
         "addr": "15 - 19 trumpington street"
     },
     {
@@ -779,7 +779,7 @@
         "food": "french",
         "phone": "01223 351880",
         "pricerange": "expensive",
-        "postcode": "c.b 4",
+        "postcode": "c b 4 3 a x",
         "addr": "22 chesterton road chesterton"
     },
     {
@@ -788,7 +788,7 @@
         "food": "portuguese",
         "phone": "01223 327908",
         "pricerange": "cheap",
-        "postcode": "c.b 1",
+        "postcode": "c b 1",
         "name": "nandos"
     },
     {
@@ -797,7 +797,7 @@
         "food": "british",
         "phone": "01223 365068",
         "pricerange": "moderate",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 1 s j",
         "addr": "4 kings parade city centre"
     },
     {
@@ -815,7 +815,7 @@
         "name": "graffiti",
         "area": "west",
         "food": "british",
-        "postcode": "c.b 3",
+        "postcode": "c b 3",
         "addr": "hotel felix whitehouse lane huntingdon road"
     },
     {
@@ -860,7 +860,7 @@
         "name": "de luca cucina and bar",
         "area": "centre",
         "food": "modern european",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 1 a w",
         "addr": "83 regent street"
     },
     {
@@ -869,7 +869,7 @@
         "food": "chinese",
         "phone": "01223 350688",
         "pricerange": "moderate",
-        "postcode": "c.b 4",
+        "postcode": "c b 4 3 h l",
         "name": "golden wok"
     },
     {
@@ -879,7 +879,7 @@
         "area": "centre",
         "food": "chinese",
         "postcode": "not available",
-        "addr": "12 st. johns street city centre"
+        "addr": "12 st johns street city centre"
     },
     {
         "phone": "not available",
@@ -887,7 +887,7 @@
         "name": "curry queen",
         "area": "not available",
         "food": "indian",
-        "postcode": "c.b 1",
+        "postcode": "c b 1",
         "addr": "106 mill road city centre"
     },
     {
@@ -896,7 +896,7 @@
         "food": "european",
         "phone": "01223 362054",
         "pricerange": "moderate",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 1 u w",
         "addr": "33 bridge street"
     },
     {
@@ -905,7 +905,7 @@
         "food": "gastropub",
         "phone": "dontcare",
         "pricerange": "expensive",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 3 j u",
         "addr": "34 - 35 green street"
     },
     {
@@ -923,7 +923,7 @@
         "addr": "4 - 6 rose crescent",
         "area": "centre",
         "food": "spanish",
-        "postcode": "c.b 2",
+        "postcode": "c b 2",
         "name": "la raza"
     },
     {
@@ -932,7 +932,7 @@
         "food": "gastropub",
         "phone": "01223 308871",
         "pricerange": "moderate",
-        "postcode": "c.b 2",
+        "postcode": "c b 2 3 q f",
         "addr": "corn exchange street"
     },
     {
@@ -941,16 +941,15 @@
         "food": "indian",
         "phone": "01223 366668",
         "pricerange": "expensive",
-        "postcode": "c.b 3",
+        "postcode": "c b 3 0 a h",
         "addr": "71 castle street city centre"
     },
     {
         "phone": "01223 327908",
         "pricerange": "cheap",
-        "name": "nandos city centre",
         "area": "centre",
         "food": "portuguese",
-        "postcode": "c.b 2",
+        "postcode": "c b 2",
         "addr": "33-34 saint andrews street"
     },
     {
@@ -968,7 +967,7 @@
         "food": "gastropub",
         "phone": "01223 247877",
         "pricerange": "expensive",
-        "postcode": "c.b 1",
+        "postcode": "c b 1 3 n l",
         "addr": "290 mill road city centre"
     },
     {
@@ -977,7 +976,7 @@
         "food": "indian",
         "phone": "01223 727410",
         "pricerange": "moderate",
-        "postcode": "c.b 4",
+        "postcode": "c b 4 3 l f",
         "name": "meghna"
     }
 ]

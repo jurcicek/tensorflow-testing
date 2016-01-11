@@ -12,13 +12,13 @@ class CNN:
         with tf.variable_scope("history_length"):
             history_length = data.train_set['features'].shape[1]
 
-        encoder_embedding_size = 32
+        encoder_embedding_size = 32 * 2
         encoder_vocabulary_length = len(data.idx2word_history)
         with tf.variable_scope("encoder_sequence_length"):
             encoder_sequence_length = data.train_set['features'].shape[2]
 
-        decoder_lstm_size = 16
-        decoder_embedding_size = 16
+        decoder_lstm_size = 16 * 2
+        decoder_embedding_size = 16 * 2
         decoder_vocabulary_length = len(data.idx2word_target)
         with tf.variable_scope("decoder_sequence_length"):
             decoder_sequence_length = data.train_set['targets'].shape[1]
@@ -61,11 +61,11 @@ class CNN:
 
             with tf.name_scope("HistoryEncoder"):
                 conv3 = encoded_utterances
-                # conv3 = conv2d(
-                #         input=conv3,
-                #         filter=[3, 1, encoder_embedding_size, encoder_embedding_size],
-                #         name='conv_hist_size_3_layer_1'
-                # )
+                conv3 = conv2d(
+                        input=conv3,
+                        filter=[3, 1, encoder_embedding_size, encoder_embedding_size],
+                        name='conv_hist_size_3_layer_1'
+                )
                 # conv_s3 = conv2d(
                 #         input=conv_s3,
                 #         filter=[3, 1, encoder_embedding_size, encoder_embedding_size],

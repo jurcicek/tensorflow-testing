@@ -14,14 +14,14 @@ class RNN:
         with tf.variable_scope("history_length"):
             history_length = data.train_set['features'].shape[1]
 
-        encoder_lstm_size = 16 * 4
-        encoder_embedding_size = 16 * 8
+        encoder_lstm_size = 16
+        encoder_embedding_size = 16 * 2
         encoder_vocabulary_length = len(data.idx2word_history)
         with tf.variable_scope("encoder_sequence_length"):
             encoder_sequence_length = data.train_set['features'].shape[2]
 
-        decoder_lstm_size = 16 * 4
-        decoder_embedding_size = 16 * 4
+        decoder_lstm_size = 16
+        decoder_embedding_size = 16
         decoder_vocabulary_length = len(data.idx2word_target)
         with tf.variable_scope("decoder_sequence_length"):
             decoder_sequence_length = data.train_set['targets'].shape[1]

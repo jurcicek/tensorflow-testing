@@ -5,11 +5,12 @@ from collections import defaultdict
 from random import randint
 
 debug = False
+# debug = True
 
 
 class Arguments:
-    def __init__(self):
-        self.n_arguments_per_slot = 4
+    def __init__(self, n_arguments_per_slot):
+        self.n_arguments_per_slot = n_arguments_per_slot
         self.value2argument = {}
         self.argument2value = {}
 
@@ -25,22 +26,27 @@ class Arguments:
             return self.value2argument[value]
         else:
             # I must add the argument and the return it
-            for i in range(0, self.n_arguments_per_slot*3):
-                n = randint(0, self.n_arguments_per_slot)
-                ARGUMENT = default_slot + '_' + str(n)
+            if self.n_arguments_per_slot > 1:
+                for i in range(0, self.n_arguments_per_slot * 3):
+                    n = randint(0, self.n_arguments_per_slot - 1)
+                    ARGUMENT = default_slot + '_' + str(n)
 
-                if ARGUMENT in self.argument2value:
-                    continue
-                else:
-                    self.add(value, ARGUMENT)
-                    return ARGUMENT
+                    if ARGUMENT in self.argument2value:
+                        continue
+                    else:
+                        self.add(value, ARGUMENT)
+                        return ARGUMENT
 
-            # overwrite an existing argument !!!
-            print('-'*120)
-            print('WARNING:   overwriting an existing argument ARGUMENT = {a}, VALUE = {v}'.format(a=ARGUMENT, v=value))
-            print('ARGUMENTS:', self.argument2value)
-            print()
-            self.add(value, ARGUMENT)
+                # overwrite an existing argument !!!
+                print('-' * 120)
+                print('WARNING:   overwriting an existing argument ARGUMENT = {a}, VALUE = {v}'.format(a=ARGUMENT, v=value))
+                print('ARGUMENTS:', self.argument2value)
+                print()
+                self.add(value, ARGUMENT)
+            else:
+                # there is only one argument per slot
+                ARGUMENT = default_slot + '_X'
+                self.add(value, ARGUMENT)
             return ARGUMENT
 
 
@@ -70,12 +76,22 @@ class Ontology:
         self.fs = {}
         for slot in ontology['informable']:
             for value in ontology['informable'][slot]:
-                self.svf[slot][value].add(tuple(value.lower().split()))
-                self.fvs[tuple(value.lower().split())][value].add(slot)
-                self.fv[tuple(value.lower().split())] = value
-                self.fs[tuple(value.lower().split())] = slot.upper()
+                self.add_onto_entry(slot, value, value)
 
+        for entity in database:
+            for slot in entity:
+                value = entity[slot]
 
+                self.add_onto_entry(slot, value, value)
+
+        # HACK: add one actra sufrace form alternative
+        self.add_onto_entry('PRICERANGE', 'moderate', 'moderately')
+
+    def add_onto_entry(self, slot, value, form):
+        self.svf[slot][value].add(tuple(form.lower().split()))
+        self.fvs[tuple(form.lower().split())][value].add(slot)
+        self.fv[tuple(form.lower().split())] = value
+        self.fs[tuple(form.lower().split())] = slot.upper()
 
     def abstract_utterance_helper(self, init_i, utterance, history_arguments):
         for i in range(init_i, len(utterance)):
@@ -90,12 +106,12 @@ class Ontology:
                     # skip this common false positive
                     if i > 5:
                         # print(utterance[i-1:j+1])
-                        if utterance[i-1:j+1] == ['can', 'ask', 'for']:
+                        if utterance[i - 1:j + 1] == ['can', 'ask', 'for']:
                             continue
 
                     ARGUMENT = [history_arguments.get_argument(value, self.fs[slice])]
 
-                    return i+1, list(utterance[:i]) + ARGUMENT + list(utterance[j:]), True
+                    return i + 1, list(utterance[:i]) + ARGUMENT + list(utterance[j:]), True
 
         return len(utterance), utterance, False
 
@@ -110,34 +126,43 @@ class Ontology:
             #     print('au', abs_utt)
         return abs_utt
 
-    def abstract_target(self, target, history_arguments):
-        # TODO: just for now
-        return self.abstract_utterance(target, history_arguments)
+    def abstract_target(self, target, history_arguments, mode):
+        if mode == 'tracker':
+            return self.abstract_utterance(target, history_arguments)
+        else:  # mode == 'e2e'
+            return self.abstract_utterance(target, history_arguments)
 
-    def abstract(self, examples):
+    def abstract(self, examples, mode):
         abstract_examples = []
         arguments = []
 
         for history, target in examples:
             if debug:
-                print('='*120)
+                print('=' * 120)
             abstract_history = []
-            example_arguments = Arguments()
+            history_arguments = Arguments(n_arguments_per_slot=5)
             for utterance in history:
-                abs_utt = self.abstract_utterance(utterance, example_arguments)
+                abs_utt = self.abstract_utterance(utterance, history_arguments)
                 abstract_history.append(abs_utt)
 
                 if debug:
                     print('U    ', utterance)
                     print('AbsU ', abs_utt)
-                    print('Args ', example_arguments)
+                    print('Args ', history_arguments)
                     print()
 
-            abs_tgt = self.abstract_target(target, example_arguments)
+            if mode == 'tracker':
+                abs_tgt = self.abstract_utterance(target, history_arguments)
+            else:  # mode == 'e2e'
+                target_arguments = Arguments(n_arguments_per_slot=1)
+                abs_tgt = self.abstract_utterance(target, target_arguments)
             if debug:
                 print('T    ', target)
                 print('AbsT ', abs_tgt)
-                print('Args ', example_arguments)
+                if mode == 'tracker':
+                    print('Args ', history_arguments)
+                else:  # mode == 'e2e'
+                    print('Args ', target_arguments)
                 print()
 
             abstract_examples.append([abstract_history, abs_tgt])
