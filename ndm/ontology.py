@@ -4,10 +4,12 @@ import sys
 from collections import defaultdict
 from random import randint
 
+debug = False
+
 
 class Arguments:
     def __init__(self):
-        self.n_arguments_per_slot = 3
+        self.n_arguments_per_slot = 4
         self.value2argument = {}
         self.argument2value = {}
 
@@ -23,7 +25,7 @@ class Arguments:
             return self.value2argument[value]
         else:
             # I must add the argument and the return it
-            for i in range(0, 10):
+            for i in range(0, self.n_arguments_per_slot*3):
                 n = randint(0, self.n_arguments_per_slot)
                 ARGUMENT = default_slot + '_' + str(n)
 
@@ -33,23 +35,30 @@ class Arguments:
                     self.add(value, ARGUMENT)
                     return ARGUMENT
 
-            # overwrite the existing argument !!!
-            print('WARNING: overwriting an existing argument')
+            # overwrite an existing argument !!!
+            print('-'*120)
+            print('WARNING:   overwriting an existing argument ARGUMENT = {a}, VALUE = {v}'.format(a=ARGUMENT, v=value))
+            print('ARGUMENTS:', self.argument2value)
+            print()
             self.add(value, ARGUMENT)
             return ARGUMENT
 
 
 class Ontology:
-    def __init__(self, ontology_fn):
-        self.load_ontology(ontology_fn)
+    def __init__(self, ontology_fn, database_fn):
+        self.load_ontology(ontology_fn, database_fn)
 
-    def load_ontology(self, file_name):
-        """Load ontology - a json file.
+    def load_ontology(self, ontology_fn, database_fn):
+        """Load ontology - a json file. And extend it with values from teh database.
 
-        :param file_name: a name of the json file
+        :param ontology_fn: a name of the ontology json file
+        :param database_fn: a name of the database json file
         """
-        with open(file_name) as f:
+        with open(ontology_fn) as f:
             ontology = json.load(f)
+
+        with open(database_fn) as f:
+            database = json.load(f)
 
         # slot-value-form mapping
         self.svf = defaultdict(lambda: defaultdict(set))
@@ -65,6 +74,8 @@ class Ontology:
                 self.fvs[tuple(value.lower().split())][value].add(slot)
                 self.fv[tuple(value.lower().split())] = value
                 self.fs[tuple(value.lower().split())] = slot.upper()
+
+
 
     def abstract_utterance_helper(self, init_i, utterance, history_arguments):
         for i in range(init_i, len(utterance)):
@@ -99,28 +110,36 @@ class Ontology:
             #     print('au', abs_utt)
         return abs_utt
 
+    def abstract_target(self, target, history_arguments):
+        # TODO: just for now
+        return self.abstract_utterance(target, history_arguments)
+
     def abstract(self, examples):
         abstract_examples = []
         arguments = []
 
         for history, target in examples:
+            if debug:
+                print('='*120)
             abstract_history = []
-            history_arguments = Arguments()
+            example_arguments = Arguments()
             for utterance in history:
-                abs_utt = self.abstract_utterance(utterance, history_arguments)
+                abs_utt = self.abstract_utterance(utterance, example_arguments)
                 abstract_history.append(abs_utt)
 
-                # print('U   ', utterance)
-                # print('Abs ', abs_utt)
-                # print('Arg ', history_arguments)
-                # print('T   ', target)
-                # print()
+                if debug:
+                    print('U    ', utterance)
+                    print('AbsU ', abs_utt)
+                    print('Args ', example_arguments)
+                    print()
 
-            # abstract_target = abstract_targets(target, history_arguments)
-            abstract_target = None
+            abs_tgt = self.abstract_target(target, example_arguments)
+            if debug:
+                print('T    ', target)
+                print('AbsT ', abs_tgt)
+                print('Args ', example_arguments)
+                print()
 
-            abstract_examples.append([abstract_history, abstract_target])
-
-        sys.exit()
+            abstract_examples.append([abstract_history, abs_tgt])
 
         return abstract_examples, arguments

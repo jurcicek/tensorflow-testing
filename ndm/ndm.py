@@ -22,10 +22,11 @@ flags.DEFINE_string('task', 'tracker', '"tracker" (dialogue state tracker) | '
                                        '"e2e" (word to word dialogue management)')
 flags.DEFINE_string('train_data', './data.dstc2.traindev.json', 'The train data the model should be trained on.')
 flags.DEFINE_string('test_data', './data.dstc2.test.json', 'The test data the model should be trained on.')
-flags.DEFINE_float('train_data_fraction', 0.1, 'The fraction of data to usd to train model.')
+flags.DEFINE_float('data_fraction', 0.1, 'The fraction of data to usd to train model.')
 flags.DEFINE_string('ontology', './data.dstc2.ontology.json', 'The ontology defining slots and their values.')
+flags.DEFINE_string('database', './data.dstc2.db.json', 'The backend database defining entries that can be queried.')
 flags.DEFINE_integer('max_epochs', 1000, 'Number of epochs to run trainer.')
-flags.DEFINE_integer('batch_size', 100, 'Number of training examples in a batch.')
+flags.DEFINE_integer('batch_size', 32, 'Number of training examples in a batch.')
 flags.DEFINE_float('learning_rate', 0.01, 'Initial learning rate.')
 flags.DEFINE_float('decay', 0.9, 'AdamPlusOptimizer learning rate decay.')
 flags.DEFINE_float('beta1', 0.9, 'AdamPlusOptimizer 1st moment decay.')
@@ -102,18 +103,27 @@ def train(model):
             print()
 
             if epoch % max(min(int(FLAGS.max_epochs / 100), 100), 1) == 0:
+                print()
+                print('Epoch: {epoch}'.format(epoch=epoch))
+                print('  - learning rate   = {lr:f}'.format(lr=learning_rate.eval()))
+                print('  - use inputs prob = {uip:f}'.format(uip=model.use_inputs_prob.eval()))
+                print('  Train data')
+                lss, acc = sess.run([model.loss, model.accuracy],
+                                    feed_dict={
+                                        model.features: model.train_set['features'],
+                                        model.targets: model.train_set['targets']
+                                    })
+                print('    - accuracy        = {acc:f}'.format(acc=acc))
+                print('    - loss            = {lss:f}'.format(lss=lss))
                 summary, lss, acc = sess.run([merged, model.loss, model.accuracy],
                                              feed_dict={
                                                  model.features: model.test_set['features'],
                                                  model.targets: model.test_set['targets']
                                              })
                 writer.add_summary(summary, epoch)
-                print()
-                print('Epoch: {epoch}'.format(epoch=epoch))
-                print(' - accuracy        = {acc:f}'.format(acc=acc))
-                print(' - loss            = {lss:f}'.format(lss=lss))
-                print(' - learning rate   = {lr:f}'.format(lr=learning_rate.eval()))
-                print(' - use inputs prob = {uip:f}'.format(uip=model.use_inputs_prob.eval()))
+                print('  Test data')
+                print('    - accuracy        = {acc:f}'.format(acc=acc))
+                print('    - loss            = {lss:f}'.format(lss=lss))
                 print()
 
                 # decrease learning rate if no improvement was seen over last 3 times.
@@ -189,10 +199,10 @@ def main(_):
             print('    model                 = {model}'.format(model=FLAGS.model))
             print('    task                  = {t}'.format(t=FLAGS.task))
             print('    train_data            = {train_data}'.format(train_data=FLAGS.train_data))
-            print('    train_data_fraction   = {train_data_fraction}'.format(
-                    train_data_fraction=FLAGS.train_data_fraction))
+            print('    data_fraction         = {data_fraction}'.format(data_fraction=FLAGS.data_fraction))
             print('    test_data             = {test_data}'.format(test_data=FLAGS.test_data))
             print('    ontology              = {ontology}'.format(ontology=FLAGS.ontology))
+            print('    database              = {database}'.format(database=FLAGS.database))
             print('    max_epochs            = {max_epochs}'.format(max_epochs=FLAGS.max_epochs))
             print('    batch_size            = {batch_size}'.format(batch_size=FLAGS.batch_size))
             print('    learning_rate         = {learning_rate}'.format(learning_rate=FLAGS.learning_rate))
@@ -209,9 +219,10 @@ def main(_):
             data = dataset.DSTC2(
                     mode=FLAGS.task,
                     train_data_fn=FLAGS.train_data,
-                    train_data_fraction=FLAGS.train_data_fraction,
+                    data_fraction=FLAGS.data_fraction,
                     test_data_fn=FLAGS.test_data,
                     ontology_fn=FLAGS.ontology,
+                    database_fn=FLAGS.database,
                     batch_size=FLAGS.batch_size
             )
 
@@ -222,7 +233,7 @@ def main(_):
             if FLAGS.model == 'cnn':
                 model = cnn.CNN(data, FLAGS)
             elif FLAGS.model == 'rnn':
-                 model = rnn.RNN(data, FLAGS)
+                model = rnn.RNN(data, FLAGS)
 
             train(model)
 

@@ -159,12 +159,13 @@ def index_and_pad_examples(examples, word2idx_history, max_length_history, max_l
 
 
 class DSTC2:
-    def __init__(self, mode, train_data_fn, train_data_fraction, test_data_fn, ontology_fn, batch_size):
-        self.ontology = ontology.Ontology(ontology_fn)
+    def __init__(self, mode, train_data_fn, data_fraction, test_data_fn, ontology_fn, database_fn, batch_size):
+        self.ontology = ontology.Ontology(ontology_fn, database_fn)
 
         train_data = load_json_data(train_data_fn)
-        train_data = train_data[:int(len(train_data) * train_data_fraction)]
+        train_data = train_data[:int(len(train_data) * min(data_fraction, 1.0))]
         test_data = load_json_data(test_data_fn)
+        test_data = test_data[:int(len(test_data) * min(data_fraction, 1.0))]
 
         train_examples = gen_examples(train_data, mode)
         test_examples = gen_examples(test_data, mode)
@@ -177,11 +178,22 @@ class DSTC2:
         # print(norm_train_examples)
 
         norm_test_examples = normalize(test_examples)
+        norm_test_examples = sort_by_conversation_length(norm_test_examples)
+        # remove 10 % of the longest dialogues
+        norm_test_examples = norm_test_examples[:-int(len(norm_test_examples) / 10)]
 
-        abstract_train_examples = self.ontology.abstract(norm_train_examples)
-        abstract_test_examples = self.ontology.abstract(norm_test_examples)
+        abstract_train_examples, arguments_train_examples = self.ontology.abstract(norm_train_examples)
+        abstract_test_examples, arguments_test_examples = self.ontology.abstract(norm_test_examples)
 
-        idx2word_history, idx2word_target = get_idx2word(norm_train_examples)
+        # for history, target in abstract_train_examples:
+        #     print('-'*120)
+        #     for utterance in history:
+        #         print('U', ' '.join(utterance))
+        #     print('T', ' '.join(target))
+
+        # sys.exit(0)
+
+        idx2word_history, idx2word_target = get_idx2word(abstract_train_examples)
         word2idx_history = get_word2idx(idx2word_history)
         word2idx_target = get_word2idx(idx2word_target)
 
@@ -194,7 +206,7 @@ class DSTC2:
         max_length_history = 0
         max_length_utterance = 0
         max_length_target = 0
-        for history, target in norm_train_examples:
+        for history, target in abstract_train_examples:
             for utterance in history:
                 max_length_utterance = max(max_length_utterance, len(utterance))
 
@@ -203,7 +215,7 @@ class DSTC2:
 
         # pad the data with _SOS_ and _EOS_ word symbols
         train_index_examples = index_and_pad_examples(
-                norm_train_examples, word2idx_history, max_length_history, max_length_utterance,
+                abstract_train_examples, word2idx_history, max_length_history, max_length_utterance,
                 word2idx_target, max_length_target
         )
         # print(train_index_examples)
@@ -223,15 +235,15 @@ class DSTC2:
         # print(train_targets)
 
         test_index_examples = index_and_pad_examples(
-                norm_test_examples, word2idx_history, max_length_history, max_length_utterance,
+                abstract_test_examples, word2idx_history, max_length_history, max_length_utterance,
                 word2idx_target, max_length_target
         )
         # print(test_index_examples)
 
-        for history, target in test_index_examples:
-            for utterance in history:
-                print('U', len(utterance), utterance)
-            print('T', len(target), target)
+        # for history, target in test_index_examples:
+        #     for utterance in history:
+        #         print('U', len(utterance), utterance)
+        #     print('T', len(target), target)
 
         test_features = [history for history, _ in test_index_examples]
         test_targets = [target for _, target in test_index_examples]

@@ -26,10 +26,14 @@ def unpack():
 
 
 def gen_slot(slot, goal):
+    # if slot in goal:
+    #     return slot + '-' + goal[slot].replace(' ', '-')
+    # else:
+    #     return slot + '-' + 'none'
     if slot in goal:
-        return slot + '-' + goal[slot].replace(' ', '-')
+        return goal[slot]
     else:
-        return slot + '-' + 'none'
+        return 'none'
 
 
 def extract_data(file_name):
@@ -78,6 +82,8 @@ def gen_data(dir_name):
 
 
 if __name__ == '__main__':
+    if not os.path.exists('./tmp'):
+        os.mkdir('./tmp')
     download_dstc2_data()
     unpack()
 
