@@ -873,7 +873,7 @@
         "name": "golden wok"
     },
     {
-        "phone": "dontcare",
+        "phone": "not available",
         "pricerange": "expensive",
         "name": "ugly duckling",
         "area": "centre",
@@ -903,7 +903,7 @@
         "name": "the slug and lettuce",
         "area": "centre",
         "food": "gastropub",
-        "phone": "dontcare",
+        "phone": "not available",
         "pricerange": "expensive",
         "postcode": "c b 2 3 j u",
         "addr": "34 - 35 green street"

@@ -298,10 +298,10 @@ class DSTC2:
         self.batch_size = batch_size
         self.train_batch_indexes = [[i, i + batch_size] for i in range(0, self.train_set_size, batch_size)]
 
-        print(idx2word_history)
+        # print(idx2word_history)
         # print(word2idx_history)
         # print()
-        print(idx2word_target)
+        # print(idx2word_target)
         # print(word2idx_target)
         # sys.exit(0)
 

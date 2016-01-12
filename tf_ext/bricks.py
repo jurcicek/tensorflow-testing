@@ -162,7 +162,7 @@ def brnn(cell_fw, cell_bw, inputs, initial_state_fw, initial_state_bw=None, name
 
 
 def rnn_decoder(cell, inputs, initial_state, embedding_size, embedding_length, sequence_length,
-                name='RNNDecoder', reuse=False, use_inputs_prob=0.0):
+                name='RNNDecoder', reuse=False, use_inputs_prob=0.0, static_input=None):
     with tf.variable_scope(name, reuse=reuse):
         # print(tf.get_variable_scope().reuse, tf.get_variable_scope().name)
         with tf.name_scope("embedding"):
@@ -193,6 +193,9 @@ def rnn_decoder(cell, inputs, initial_state, embedding_size, embedding_length, s
                     decoded_input = decoder_outputs_argmax_embedding[-1]
                     choice = tf.floor(tf.random_uniform([1], use_inputs_prob, 1 + use_inputs_prob, tf.float32))
                     input = choice * true_input + (1.0 - choice) * decoded_input
+
+                if static_input:
+                    input = tf.concat(1, [input, static_input])
 
                 # print(tf.get_variable_scope().reuse, tf.get_variable_scope().name)
                 output, state = cell(input, states[-1])

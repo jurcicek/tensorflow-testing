@@ -12,7 +12,7 @@ class CNN:
         with tf.variable_scope("history_length"):
             history_length = data.train_set['features'].shape[1]
 
-        encoder_embedding_size = 32 * 2
+        encoder_embedding_size = 32 * 4
         encoder_vocabulary_length = len(data.idx2word_history)
         with tf.variable_scope("encoder_sequence_length"):
             encoder_sequence_length = data.train_set['features'].shape[2]
@@ -61,11 +61,11 @@ class CNN:
 
             with tf.name_scope("HistoryEncoder"):
                 conv3 = encoded_utterances
-                conv3 = conv2d(
-                        input=conv3,
-                        filter=[3, 1, encoder_embedding_size, encoder_embedding_size],
-                        name='conv_hist_size_3_layer_1'
-                )
+                # conv3 = conv2d(
+                #         input=conv3,
+                #         filter=[3, 1, encoder_embedding_size, encoder_embedding_size],
+                #         name='conv_hist_size_3_layer_1'
+                # )
                 # conv_s3 = conv2d(
                 #         input=conv_s3,
                 #         filter=[3, 1, encoder_embedding_size, encoder_embedding_size],
@@ -101,15 +101,15 @@ class CNN:
                 # encoded_history = tf.nn.relu(projection)
 
             with tf.name_scope("Decoder"):
-                use_inputs_prob = tf.Variable(1.0, name='use_inputs_prob', trainable=False)
-                use_inputs_prob_decay_op = use_inputs_prob.assign(use_inputs_prob * FLAGS.use_inputs_prob_decay)
+                use_inputs_prob = tf.placeholder("float32", name='use_inputs_prob')
 
                 with tf.name_scope("RNNDecoderCell"):
                     cell = LSTMCell(
                             num_units=decoder_lstm_size,
-                            input_size=decoder_embedding_size,
+                            input_size=decoder_embedding_size+encoder_embedding_size,
                             use_peepholes=True,
                     )
+                    initial_state = cell.zero_state(batch_size, tf.float32)
 
                 # decode all histories along the utterance axis
                 final_encoder_state = encoded_history
@@ -117,7 +117,8 @@ class CNN:
                 decoder_states, decoder_outputs, decoder_outputs_softmax = rnn_decoder(
                         cell=cell,
                         inputs=[targets[:, word] for word in range(decoder_sequence_length)],
-                        initial_state=final_encoder_state,
+                        static_input=final_encoder_state,
+                        initial_state=initial_state, #final_encoder_state,
                         embedding_size=decoder_embedding_size,
                         embedding_length=decoder_vocabulary_length,
                         sequence_length=decoder_sequence_length,
@@ -162,7 +163,6 @@ class CNN:
         self.targets = targets
         self.batch_size = batch_size
         self.use_inputs_prob = use_inputs_prob
-        self.use_inputs_prob_decay_op = use_inputs_prob_decay_op
         self.targets_given_features = targets_given_features
         self.loss = loss
         self.accuracy = accuracy

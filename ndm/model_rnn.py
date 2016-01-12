@@ -108,7 +108,7 @@ class RNN:
 
             with tf.name_scope("HistoryEncoder"):
                 # encode all histories along the utterance axis
-                with tf.name_scope("RNNFrowardHistoryEncoderCell_1"):
+                with tf.name_scope("RNNForwardHistoryEncoderCell_1"):
                     cell_fw_1 = LSTMCell(
                             num_units=encoder_lstm_size,
                             input_size=cell_fw_2.state_size,
@@ -124,7 +124,7 @@ class RNN:
                     )
                     initial_state_bw_1 = cell_fw_2.zero_state(batch_size, tf.float32)
 
-                with tf.name_scope("RNNFrowardHistoryEncoderCell_2"):
+                with tf.name_scope("RNNForwardHistoryEncoderCell_2"):
                     cell_fw_2 = LSTMCell(
                             num_units=encoder_lstm_size,
                             input_size=cell_fw_1.output_size + cell_bw_1.output_size,
@@ -151,15 +151,15 @@ class RNN:
                 )
 
             with tf.name_scope("Decoder"):
-                use_inputs_prob = tf.Variable(1.0, name='use_inputs_prob', trainable=False)
-                use_inputs_prob_decay_op = use_inputs_prob.assign(use_inputs_prob * FLAGS.use_inputs_prob_decay)
+                use_inputs_prob = tf.placeholder("float32", name='use_inputs_prob')
 
                 with tf.name_scope("RNNDecoderCell"):
                     cell = LSTMCell(
                             num_units=decoder_lstm_size,
-                            input_size=decoder_embedding_size,
+                            input_size=decoder_embedding_size+cell_fw_2.state_size,
                             use_peepholes=True,
                     )
+                    initial_state = cell.zero_state(batch_size, tf.float32)
 
                 # decode all histories along the utterance axis
                 final_encoder_state = encoder_states[-1]
@@ -167,7 +167,8 @@ class RNN:
                 decoder_states, decoder_outputs, decoder_outputs_softmax = rnn_decoder(
                         cell=cell,
                         inputs=[targets[:, word] for word in range(decoder_sequence_length)],
-                        initial_state=final_encoder_state,
+                        static_input=final_encoder_state,
+                        initial_state=initial_state, #final_encoder_state,
                         embedding_size=decoder_embedding_size,
                         embedding_length=decoder_vocabulary_length,
                         sequence_length=decoder_sequence_length,
@@ -212,7 +213,6 @@ class RNN:
         self.targets = targets
         self.batch_size = batch_size
         self.use_inputs_prob = use_inputs_prob
-        self.use_inputs_prob_decay_op = use_inputs_prob_decay_op
         self.targets_given_features = targets_given_features
         self.loss = loss
         self.accuracy = accuracy

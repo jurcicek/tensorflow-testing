@@ -10,7 +10,6 @@ import dataset
 import model_cnn as cnn
 import model_rnn as rnn
 
-from random import shuffle
 from tf_ext.bricks import device_for_node_cpu
 from tf_ext.optimizers import AdamPlusOptimizer, AdamPlusCovOptimizer
 
@@ -60,8 +59,8 @@ def train(model):
         # tvars = [v for v in tvars if 'embedding_table' not in v.name] # all variables except embeddings
         learning_rate = tf.Variable(float(FLAGS.learning_rate), trainable=False)
 
-        # train_op = AdamPlusOptimizer(
-        train_op = AdamPlusCovOptimizer(
+        train_op = AdamPlusOptimizer(
+        # train_op = AdamPlusCovOptimizer(
                 learning_rate=learning_rate,
                 beta1=FLAGS.beta1,
                 beta2=FLAGS.beta2,
@@ -89,6 +88,7 @@ def train(model):
 
         previous_accuracies = []
         previous_losses = []
+        use_inputs_prob = 1.0
         for epoch in range(FLAGS.max_epochs):
             print('Batch: ', end=' ', flush=True)
             for b, batch in enumerate(model.data.iter_train_batches()):
@@ -96,8 +96,9 @@ def train(model):
                 sess.run(
                         train_op,
                         feed_dict={
-                            model.features: batch['features'],
-                            model.targets: batch['targets'],
+                            model.features: batch  ['features'],
+                            model.targets: batch   ['targets'],
+                            model.use_inputs_prob: use_inputs_prob,
                         }
                 )
             print()
@@ -106,24 +107,37 @@ def train(model):
                 print()
                 print('Epoch: {epoch}'.format(epoch=epoch))
                 print('  - learning rate   = {lr:f}'.format(lr=learning_rate.eval()))
-                print('  - use inputs prob = {uip:f}'.format(uip=model.use_inputs_prob.eval()))
+                print('  - use inputs prob = {uip:f}'.format(uip=use_inputs_prob))
                 print('  Train data')
                 lss, acc = sess.run([model.loss, model.accuracy],
                                     feed_dict={
                                         model.features: model.train_set['features'],
-                                        model.targets: model.train_set['targets']
+                                        model.targets: model.train_set ['targets'],
+                                        model.use_inputs_prob:         1.0,
                                     })
-                print('    - accuracy        = {acc:f}'.format(acc=acc))
-                print('    - loss            = {lss:f}'.format(lss=lss))
+                print('    - use inputs prob = {uip:f}'.format(uip=1.0))
+                print('      - accuracy      = {acc:f}'.format(acc=acc))
+                print('      - loss          = {lss:f}'.format(lss=lss))
+                lss, acc = sess.run([model.loss, model.accuracy],
+                                    feed_dict={
+                                        model.features: model.train_set['features'],
+                                        model.targets: model.train_set ['targets'],
+                                        model.use_inputs_prob:         0.0,
+                                    })
+                print('    - use inputs prob = {uip:f}'.format(uip=0.0))
+                print('      - accuracy      = {acc:f}'.format(acc=acc))
+                print('      - loss          = {lss:f}'.format(lss=lss))
                 summary, lss, acc = sess.run([merged, model.loss, model.accuracy],
                                              feed_dict={
                                                  model.features: model.test_set['features'],
-                                                 model.targets: model.test_set['targets']
+                                                 model.targets: model.test_set ['targets'],
+                                                 model.use_inputs_prob:        0.0,
                                              })
                 writer.add_summary(summary, epoch)
                 print('  Test data')
-                print('    - accuracy        = {acc:f}'.format(acc=acc))
-                print('    - loss            = {lss:f}'.format(lss=lss))
+                print('    - use inputs prob = {uip:f}'.format(uip=0.0))
+                print('      - accuracy      = {acc:f}'.format(acc=acc))
+                print('      - loss          = {lss:f}'.format(lss=lss))
                 print()
 
                 # decrease learning rate if no improvement was seen over last 3 times.
@@ -136,7 +150,7 @@ def train(model):
                 if acc > 0.9999 or max(previous_accuracies) > max(previous_accuracies[-20:]):
                     break
 
-            sess.run(model.use_inputs_prob_decay_op)
+            use_inputs_prob *= FLAGS.use_inputs_prob_decay
 
         save_path = saver.save(sess, ".cnn-model.ckpt")
         print()
@@ -149,18 +163,19 @@ def train(model):
         print('Shape of targets:', model.test_set['targets'].shape)
         # print(test_set['targets'])
         print('Predictions')
-        targets_give_features = sess.run(model.targets_given_features,
+        targets_given_features = sess.run(model.targets_given_features,
                                          feed_dict={
                                              model.features: model.test_set['features'],
-                                             model.targets: model.test_set['targets']
+                                             model.targets: model.test_set ['targets'],
+                                             model.use_inputs_prob:        0.0,
                                          })
-        targets_given_features_argmax = np.argmax(targets_give_features, 2)
-        print('Shape of predictions:', targets_give_features.shape)
+        targets_given_features_argmax = np.argmax(targets_given_features, 2)
+        print('Shape of predictions:', targets_given_features.shape)
         print('Argmax predictions')
         # print(p_o_i_argmax)
         print()
         for features in range(0, targets_given_features_argmax.shape[0],
-                              max(int(targets_given_features_argmax.shape[0] / 10), 1)):
+                              max(int(targets_given_features_argmax.shape[0]*0.05), 1)):
             print('History', features)
 
             for j in range(model.test_set['features'].shape[1]):
@@ -169,7 +184,8 @@ def train(model):
                     w = model.idx2word_history[model.test_set['features'][features, j, k]]
                     if w not in ['_SOS_', '_EOS_']:
                         utterance.append(w)
-                print('U {j}: {c:80}'.format(j=j, c=' '.join(utterance)))
+                if utterance:
+                    print('U {j}: {c:80}'.format(j=j, c=' '.join(utterance)))
 
             prediction = []
             for j in range(targets_given_features_argmax.shape[1]):
