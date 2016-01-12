@@ -59,8 +59,8 @@ def train(model):
         # tvars = [v for v in tvars if 'embedding_table' not in v.name] # all variables except embeddings
         learning_rate = tf.Variable(float(FLAGS.learning_rate), trainable=False)
 
-        train_op = AdamPlusOptimizer(
-        # train_op = AdamPlusCovOptimizer(
+        # train_op = AdamPlusOptimizer(
+        train_op = AdamPlusCovOptimizer(
                 learning_rate=learning_rate,
                 beta1=FLAGS.beta1,
                 beta2=FLAGS.beta2,
