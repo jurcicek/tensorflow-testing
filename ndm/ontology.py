@@ -5,7 +5,7 @@ from collections import defaultdict
 from random import randint
 
 debug = False
-debug = True
+# debug = True
 
 
 class Arguments:
@@ -39,7 +39,8 @@ class Arguments:
 
                 # overwrite an existing argument !!!
                 print('-' * 120)
-                print('WARNING:   overwriting an existing argument ARGUMENT = {a}, VALUE = {v}'.format(a=ARGUMENT, v=value))
+                print('WARNING:   overwriting an existing argument ARGUMENT = {a}, VALUE = {v}'.format(a=ARGUMENT,
+                                                                                                       v=value))
                 print('ARGUMENTS:', self.argument2value)
                 print()
                 self.add(value, ARGUMENT)
@@ -47,6 +48,7 @@ class Arguments:
                 # there is only one argument per slot
                 ARGUMENT = default_slot + '_X'
                 self.add(value, ARGUMENT)
+
             return ARGUMENT
 
 

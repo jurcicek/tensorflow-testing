@@ -109,11 +109,11 @@ def get_idx2word(examples):
             words_target[word] += 1
 
     idx2word_history = ['_SOS_', '_EOS_', '_OOV_']
-    words_history = [word for word in words_history if words_history[word] >= 3]
+    words_history = [word for word in words_history if words_history[word] >= 2]
     idx2word_history.extend(sorted(words_history))
 
     idx2word_target = ['_SOS_', '_EOS_', '_OOV_']
-    words_target = [word for word in words_history if words_target[word] >= 3]
+    words_target = [word for word in words_target if words_target[word] >= 2]
     idx2word_target.extend(sorted(words_target))
 
     return idx2word_history, idx2word_target
@@ -126,8 +126,9 @@ def index_and_pad_utterance(utterance, word2idx, max_length, add_sos=True):
         s = []
 
     for w in utterance:
-        if w not in word2idx:
-            print('OOV: {oov}'.format(oov=w))
+        # if w not in word2idx:
+        #     print('U', utterance)
+        #     print('OOV: {oov}'.format(oov=w))
         s.append(word2idx.get(w, word2idx['_OOV_']))
 
     for w in range(max_length - len(s)):
@@ -193,16 +194,16 @@ class DSTC2:
         abstract_train_examples, arguments_train_examples = self.ontology.abstract(norm_train_examples, mode)
         abstract_test_examples, arguments_test_examples = self.ontology.abstract(norm_test_examples, mode)
 
-        for history, target in abstract_train_examples:
-            print('-'*120)
-            for utterance in history:
-                print('U', ' '.join(utterance))
-                print('T', ' '.join(target))
-        for history, target in abstract_test_examples:
-            print('-'*120)
-            for utterance in history:
-                print('U', ' '.join(utterance))
-                print('T', ' '.join(target))
+        # for history, target in abstract_train_examples:
+        #     print('-'*120)
+        #     for utterance in history:
+        #         print('U', ' '.join(utterance))
+        #         print('T', ' '.join(target))
+        # for history, target in abstract_test_examples:
+        #     print('-'*120)
+        #     for utterance in history:
+        #         print('U', ' '.join(utterance))
+        #         print('T', ' '.join(target))
         # sys.exit(0)
 
         idx2word_history, idx2word_target = get_idx2word(abstract_train_examples)
@@ -214,6 +215,7 @@ class DSTC2:
         # print()
         # print(idx2word_target)
         # print(word2idx_target)
+        # sys.exit(0)
 
         max_length_history = 0
         max_length_utterance = 0
@@ -231,6 +233,7 @@ class DSTC2:
                 word2idx_target, max_length_target
         )
         # print(train_index_examples)
+        #sys.exit(0)
 
         # for history, target in train_index_examples:
         #     for utterance in history:
@@ -251,6 +254,7 @@ class DSTC2:
                 word2idx_target, max_length_target
         )
         # print(test_index_examples)
+        # sys.exit(0)
 
         # for history, target in test_index_examples:
         #     for utterance in history:
@@ -293,6 +297,13 @@ class DSTC2:
 
         self.batch_size = batch_size
         self.train_batch_indexes = [[i, i + batch_size] for i in range(0, self.train_set_size, batch_size)]
+
+        print(idx2word_history)
+        # print(word2idx_history)
+        # print()
+        print(idx2word_target)
+        # print(word2idx_target)
+        # sys.exit(0)
 
     def iter_train_batches(self):
         for batch in self.train_batch_indexes:
